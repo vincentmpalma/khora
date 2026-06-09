@@ -1,13 +1,16 @@
+import { useNavigate } from 'react-router-dom'
 import './LandingPage.css'
 
 function LandingPage() {
+  const navigate = useNavigate()
+
   return (
     <div className="landing">
       <nav className="nav">
         <span className="nav-logo">Khora</span>
         <div className="nav-actions">
-          <button className="btn-ghost">Sign In</button>
-          <button className="btn-primary">Get Started</button>
+          <button className="btn-ghost" onClick={() => navigate('/login')}>Sign In</button>
+          <button className="btn-primary" onClick={() => navigate('/register')}>Get Started</button>
         </div>
       </nav>
 
@@ -21,8 +24,8 @@ function LandingPage() {
           connect services, and build architecture diagrams with your team — live.
         </p>
         <div className="hero-actions">
-          <button className="btn-primary btn-large">Get Started Free</button>
-          <button className="btn-ghost btn-large">Sign In</button>
+          <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Get Started Free</button>
+          <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign In</button>
         </div>
       </section>
 

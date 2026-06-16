@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
+import roomRoutes from './routes/rooms.js'
 
 dotenv.config()
 
@@ -16,6 +17,7 @@ app.get('/health', (req, res) => {
 })
 
 app.use('/auth', authRoutes)
+app.use('/rooms', roomRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)

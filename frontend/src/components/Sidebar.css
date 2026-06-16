@@ -1,8 +1,8 @@
 .sidebar {
-  width: 210px;
-  min-width: 210px;
-  background: #111;
-  border-right: 1px solid #1e1e1e;
+  width: 216px;
+  min-width: 216px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
   overflow-y: auto;
   padding: 16px 12px;
   display: flex;
@@ -19,53 +19,49 @@
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: var(--border-hover);
   border-radius: 4px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
 }
 
 .sidebar-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .sidebar-group-label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: #555;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
+  padding-left: 2px;
 }
 
 .node-type-block {
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
-/* main type row */
 .sidebar-item {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
   font-size: 13px;
-  color: #ccc;
+  color: var(--text-secondary);
   cursor: grab;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
   user-select: none;
 }
 
 .sidebar-item:hover {
-  background: #222;
-  border-color: #444;
-  color: #fff;
+  background: var(--surface-raised);
+  border-color: var(--border);
+  color: var(--text-primary);
 }
 
 .sidebar-item:active {
@@ -79,20 +75,19 @@
   flex-shrink: 0;
 }
 
-/* sub-items — indented, smaller */
 .sidebar-subitem {
-  padding: 4px 10px 4px 26px;
+  padding: 4px 10px 4px 25px;
   font-size: 12px;
-  color: #555;
+  color: var(--text-tertiary);
   cursor: grab;
-  border-radius: 4px;
-  transition: color 0.15s, background 0.15s;
+  border-radius: 6px;
+  transition: color 0.12s, background 0.12s;
   user-select: none;
 }
 
 .sidebar-subitem:hover {
-  color: #aaa;
-  background: #181818;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
 }
 
 .sidebar-subitem:active {

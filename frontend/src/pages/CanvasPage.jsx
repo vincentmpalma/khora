@@ -153,7 +153,7 @@ function CanvasPage() {
             onEdgeClick={handleEdgeClick}
             onPaneClick={handlePaneClick}
           >
-            <Background />
+            <Background variant="dots" color="#1e1e22" gap={20} size={1.2} />
             <Controls />
           </ReactFlow>
         </div>

@@ -2,24 +2,25 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #0d0d0d;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  font-family: var(--font);
 }
 
 .canvas-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
-  border-bottom: 1px solid #1e1e1e;
-  background: #111;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
   z-index: 10;
+  min-height: 48px;
 }
 
 .canvas-room-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-primary);
   letter-spacing: -0.2px;
 }
 
@@ -35,16 +36,17 @@
 
 .btn-ghost {
   background: transparent;
-  border: 1px solid #333;
-  color: #ccc;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
   font-size: 13px;
-  transition: border-color 0.2s, color 0.2s;
+  font-family: var(--font);
+  transition: border-color 0.15s, color 0.15s;
 }
 
 .btn-ghost:hover {
-  border-color: #666;
-  color: #fff;
+  border-color: var(--border-hover);
+  color: var(--text-primary);
 }

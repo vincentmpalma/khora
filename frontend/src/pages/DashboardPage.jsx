@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import './DashboardPage.css'
 
 const fakeRooms = [
@@ -21,10 +22,66 @@ function MiniPreview() {
 
 function DashboardPage() {
   const navigate = useNavigate()
+  const [showModal, setShowModal] = useState(false)
+  const [roomName, setRoomName] = useState('')
+  const [rooms, setRooms] = useState([])
+
+  useEffect(() => {
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      navigate('/login')
+      return
+    }
+
+    async function fetchRooms() {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await response.json()
+        if (response.ok) {
+          setRooms(data.rooms)
+        } else {
+          console.error(data.error)
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    fetchRooms()
+
+  }, [])
 
   function handleSignOut() {
     localStorage.removeItem('token')
     navigate('/')
+  }
+
+  async function handleCreateRoom() {
+    if (!roomName.trim()) return
+
+    const token = localStorage.getItem('token')
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: roomName })
+      })
+
+      const data = await response.json()
+      if (!response.ok) return
+
+      setShowModal(false)
+      setRoomName('')
+      navigate(`/room/${data.room.slug}`)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   return (
@@ -40,7 +97,7 @@ function DashboardPage() {
             <h1>Your rooms</h1>
             <p>Continue a session or start a new architecture canvas.</p>
           </div>
-          <button className="btn-primary">+ New Room</button>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>+ New Room</button>
         </div>
 
         <div className="rooms-grid">
@@ -52,7 +109,22 @@ function DashboardPage() {
               <div className="room-card-info">
                 <div className="room-meta">
                   <span className="room-name">{room.name}</span>
-                  <span className="room-date">Created {room.createdAt}</span>
+                  <span className="room-date">Created {room.created_at || room.createdAt}</span>
+                </div>
+                <span className="room-open">Open →</span>
+              </div>
+            </div>
+          ))}
+
+          {rooms.map(room => (
+            <div key={room.id} className="room-card" onClick={() => navigate(`/room/${room.slug}`)}>
+              <div className="room-preview">
+                <MiniPreview />
+              </div>
+              <div className="room-card-info">
+                <div className="room-meta">
+                  <span className="room-name">{room.name}</span>
+                  <span className="room-date">Created {new Date(room.created_at).toLocaleDateString()}</span>
                 </div>
                 <span className="room-open">Open →</span>
               </div>
@@ -60,6 +132,30 @@ function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <p className="modal-title">New room</p>
+            <div className="form-group">
+              <label htmlFor="room-name">Room name</label>
+              <input
+                id="room-name"
+                type="text"
+                placeholder="e.g. Twitter Architecture"
+                value={roomName}
+                onChange={e => setRoomName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreateRoom()}
+                autoFocus
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleCreateRoom}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

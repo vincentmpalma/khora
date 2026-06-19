@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -11,7 +11,6 @@ import './CanvasPage.css'
 
 const nodeTypes = { component: ComponentNode }
 
-// smart default protocol based on what's being connected
 function getSmartProtocol(sourceType, targetType) {
   if (targetType === 'Message Queue') return 'Pub/Sub'
   if (sourceType === 'Service' && targetType === 'Service') return 'gRPC'
@@ -19,7 +18,6 @@ function getSmartProtocol(sourceType, targetType) {
   return ''
 }
 
-// smart default mode — async if target is a message queue
 function getSmartMode(targetType) {
   if (targetType === 'Message Queue') return 'async'
   return 'sync'
@@ -32,41 +30,100 @@ function CanvasPage() {
   const navigate = useNavigate()
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [edges, setEdges, onEdgesState] = useEdgesState([])
   const [rfInstance, setRfInstance] = useState(null)
+  const [roomName, setRoomName] = useState(slug)
+  const [saveStatus, setSaveStatus] = useState('saved')
 
-  // track which node or edge is selected — only one at a time
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState(null)
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || null
   const selectedEdge = edges.find(e => e.id === selectedEdgeId) || null
 
-  function onAttrChange(nodeId, key, value) {
-    setNodes(nds => nds.map(n =>
-      n.id === nodeId
-        ? { ...n, data: { ...n.data, attrs: { ...n.data.attrs, [key]: value } } }
-        : n
-    ))
+  // ref to hold the debounce timer so we can clear it between changes
+  const saveTimer = useRef(null)
+
+  // load canvas state on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+
+    async function loadRoom() {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          navigate('/dashboard')
+          return
+        }
+
+        setRoomName(data.room.name)
+        const { nodes: savedNodes, edges: savedEdges } = data.room.canvas_state
+        if (savedNodes.length) setNodes(savedNodes)
+        if (savedEdges.length) setEdges(savedEdges)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    loadRoom()
+  }, [slug])
+
+  // debounced save — waits 1.5s after last change before saving
+  function saveCanvas(updatedNodes, updatedEdges) {
+    setSaveStatus('saving...')
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(async () => {
+      const token = localStorage.getItem('token')
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ canvas_state: { nodes: updatedNodes, edges: updatedEdges } })
+        })
+        setSaveStatus('saved')
+      } catch (err) {
+        setSaveStatus('error saving')
+        console.error(err)
+      }
+    }, 1500)
   }
 
-  // called by EdgePanel when the user changes protocol, mode, or label
+  function onAttrChange(nodeId, key, value) {
+    setNodes(nds => {
+      const updated = nds.map(n =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, attrs: { ...n.data.attrs, [key]: value } } }
+          : n
+      )
+      saveCanvas(updated, edges)
+      return updated
+    })
+  }
+
   function onEdgeChange(edgeId, key, value) {
-    setEdges(eds => eds.map(e => {
-      if (e.id !== edgeId) return e
-      const newData = { ...e.data, [key]: value }
-      return {
-        ...e,
-        data: newData,
-        label: newData.label || newData.protocol || '',
-        // async mode = dashed line
-        style: { ...e.style, strokeDasharray: newData.mode === 'async' ? '6 3' : undefined },
-      }
-    }))
+    setEdges(eds => {
+      const updated = eds.map(e => {
+        if (e.id !== edgeId) return e
+        const newData = { ...e.data, [key]: value }
+        return {
+          ...e,
+          data: newData,
+          label: newData.label || newData.protocol || '',
+          style: { ...e.style, strokeDasharray: newData.mode === 'async' ? '6 3' : undefined },
+        }
+      })
+      saveCanvas(nodes, updated)
+      return updated
+    })
   }
 
   const onConnect = useCallback((params) => {
-    // find the source and target node types for smart defaults
     const sourceNode = nodes.find(n => n.id === params.source)
     const targetNode = nodes.find(n => n.id === params.target)
     const sourceType = sourceNode?.data?.nodeType
@@ -75,12 +132,16 @@ function CanvasPage() {
     const protocol = getSmartProtocol(sourceType, targetType)
     const mode = getSmartMode(targetType)
 
-    setEdges(eds => addEdge({
-      ...params,
-      data: { protocol, mode, label: '' },
-      label: protocol,
-      style: { strokeDasharray: mode === 'async' ? '6 3' : undefined },
-    }, eds))
+    setEdges(eds => {
+      const updated = addEdge({
+        ...params,
+        data: { protocol, mode, label: '' },
+        label: protocol,
+        style: { strokeDasharray: mode === 'async' ? '6 3' : undefined },
+      }, eds)
+      saveCanvas(nodes, updated)
+      return updated
+    })
   }, [nodes, setEdges])
 
   const onDragOver = useCallback((event) => {
@@ -99,13 +160,17 @@ function CanvasPage() {
     const attrs = { ...config.defaults }
     if (primaryAttr && primaryValue) attrs[primaryAttr] = primaryValue
 
-    setNodes(nds => nds.concat({
-      id: `${nodeType}-${nodeId++}`,
-      type: 'component',
-      position,
-      data: { nodeType, attrs },
-    }))
-  }, [rfInstance, setNodes])
+    setNodes(nds => {
+      const updated = nds.concat({
+        id: `${nodeType}-${nodeId++}`,
+        type: 'component',
+        position,
+        data: { nodeType, attrs },
+      })
+      saveCanvas(updated, edges)
+      return updated
+    })
+  }, [rfInstance, setNodes, edges])
 
   function handleNodeClick(_, node) {
     setSelectedNodeId(node.id)
@@ -122,7 +187,6 @@ function CanvasPage() {
     setSelectedEdgeId(null)
   }
 
-  // show the right panel depending on what's selected
   const rightPanel = selectedEdge
     ? <EdgePanel edge={selectedEdge} onChange={onEdgeChange} />
     : <AttributePanel node={selectedNode} onChange={onAttrChange} />
@@ -131,8 +195,8 @@ function CanvasPage() {
     <div className="canvas-page">
       <div className="canvas-topbar">
         <button className="btn-ghost" onClick={() => navigate('/dashboard')}>← Back</button>
-        <span className="canvas-room-name">{slug}</span>
-        <div />
+        <span className="canvas-room-name">{roomName}</span>
+        <span className="canvas-save-status">{saveStatus}</span>
       </div>
 
       <div className="canvas-body">
@@ -144,7 +208,7 @@ function CanvasPage() {
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onEdgesChange={onEdgesState}
             onConnect={onConnect}
             onInit={setRfInstance}
             onDrop={onDrop}

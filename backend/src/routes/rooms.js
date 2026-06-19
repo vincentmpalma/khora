@@ -31,10 +31,59 @@ router.get('/', authMiddleware, async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT * FROM rooms WHERE owner_id = $1 ORDER BY created_at DESC',
+      'SELECT id, name, slug, created_at FROM rooms WHERE owner_id = $1 ORDER BY created_at DESC',
       [owner_id]
     )
     res.json({ rooms: result.rows })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'server error' })
+  }
+})
+
+router.get('/:slug', authMiddleware, async (req, res) => {
+  const { slug } = req.params
+  const owner_id = req.user.id
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM rooms WHERE slug = $1',
+      [slug]
+    )
+    const room = result.rows[0]
+
+    if (!room) {
+      return res.status(404).json({ error: 'room not found' })
+    }
+
+    // make sure the requesting user owns this room
+    if (room.owner_id !== owner_id) {
+      return res.status(403).json({ error: 'forbidden' })
+    }
+
+    res.json({ room })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'server error' })
+  }
+})
+
+router.patch('/:slug', authMiddleware, async (req, res) => {
+  const { slug } = req.params
+  const { canvas_state } = req.body
+  const owner_id = req.user.id
+
+  try {
+    const result = await pool.query(
+      'UPDATE rooms SET canvas_state = $1 WHERE slug = $2 AND owner_id = $3 RETURNING id',
+      [canvas_state, slug, owner_id]
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'room not found' })
+    }
+
+    res.json({ ok: true })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'server error' })

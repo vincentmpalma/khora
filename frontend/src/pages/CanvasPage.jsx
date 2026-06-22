@@ -13,6 +13,11 @@ import './CanvasPage.css'
 
 const nodeTypes = { component: ComponentNode }
 
+const CURSOR_COLORS = ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6']
+function cursorColor(clientId) {
+  return CURSOR_COLORS[Number(clientId) % CURSOR_COLORS.length]
+}
+
 function getSmartProtocol(sourceType, targetType) {
   if (targetType === 'Message Queue') return 'Pub/Sub'
   if (sourceType === 'Service' && targetType === 'Service') return 'gRPC'
@@ -44,10 +49,15 @@ function CanvasPage() {
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || null
   const selectedEdge = edges.find(e => e.id === selectedEdgeId) || null
 
+  const [remoteCursors, setRemoteCursors] = useState(new Map())
+
   // refs to yjs objects so mutation handlers can access them without stale closures
   const ydocRef = useRef(null)
   const yNodesRef = useRef(null)
   const yEdgesRef = useRef(null)
+  const providerRef = useRef(null)
+  const canvasAreaRef = useRef(null)
+  const lastCursorSend = useRef(0)
   const saveTimer = useRef(null)
 
   // debounced save — waits 1.5s after last change before writing to the database
@@ -115,6 +125,19 @@ function CanvasPage() {
         ydocRef.current = ydoc
         yNodesRef.current = yNodes
         yEdgesRef.current = yEdges
+        providerRef.current = provider
+
+        // update remote cursors whenever any client's awareness state changes
+        provider.awareness.on('change', () => {
+          const states = provider.awareness.getStates()
+          const next = new Map()
+          states.forEach((state, clientId) => {
+            if (clientId !== provider.awareness.clientID && state.cursor) {
+              next.set(clientId, state.cursor)
+            }
+          })
+          setRemoteCursors(next)
+        })
 
         // observe yNodes — fires whenever nodes change (local or remote)
         // this is how react state stays in sync with the yjs doc after the initial load
@@ -260,6 +283,22 @@ function CanvasPage() {
     })
   }, [])
 
+  const onMouseMoveCanvas = useCallback((e) => {
+    const now = Date.now()
+    if (now - lastCursorSend.current < 50) return
+    lastCursorSend.current = now
+    const provider = providerRef.current
+    if (!provider || !rfInstance) return
+    const pos = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    provider.awareness.setLocalStateField('cursor', { x: pos.x, y: pos.y })
+  }, [rfInstance])
+
+  const onMouseLeaveCanvas = useCallback(() => {
+    const provider = providerRef.current
+    if (!provider) return
+    provider.awareness.setLocalStateField('cursor', null)
+  }, [])
+
   function handleNodeClick(_, node) {
     setSelectedNodeId(node.id)
     setSelectedEdgeId(null)
@@ -289,7 +328,12 @@ function CanvasPage() {
 
       <div className="canvas-body">
         <Sidebar />
-        <div className="canvas-area">
+        <div
+          className="canvas-area"
+          ref={canvasAreaRef}
+          onMouseMove={onMouseMoveCanvas}
+          onMouseLeave={onMouseLeaveCanvas}
+        >
           <ReactFlow
             colorMode="dark"
             nodeTypes={nodeTypes}
@@ -309,6 +353,19 @@ function CanvasPage() {
             <Background variant="dots" color="#1e1e22" gap={20} size={1.2} />
             <Controls />
           </ReactFlow>
+          {rfInstance && [...remoteCursors.entries()].map(([clientId, cursor]) => {
+            const screenPos = rfInstance.flowToScreenPosition(cursor)
+            const rect = canvasAreaRef.current?.getBoundingClientRect()
+            if (!rect) return null
+            const color = cursorColor(clientId)
+            return (
+              <div key={clientId} className="remote-cursor" style={{ left: screenPos.x - rect.left, top: screenPos.y - rect.top }}>
+                <svg width="16" height="20" viewBox="0 0 16 20" fill={color}>
+                  <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L11 11 Z" />
+                </svg>
+              </div>
+            )
+          })}
         </div>
         {rightPanel}
       </div>

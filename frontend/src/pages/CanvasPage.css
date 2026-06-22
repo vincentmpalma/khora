@@ -32,6 +32,8 @@
 
 .canvas-area {
   flex: 1;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-ghost {
@@ -54,4 +56,11 @@
 .canvas-save-status {
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+.remote-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+  transform: translate(-2px, -2px);
 }

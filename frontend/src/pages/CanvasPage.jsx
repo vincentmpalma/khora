@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge } from '@xyflow/react'
+import * as Y from 'yjs'
+import { SocketIOProvider } from 'y-socket.io'
 import '@xyflow/react/dist/style.css'
 import Sidebar from '../components/Sidebar'
 import ComponentNode from '../components/nodes/ComponentNode'
@@ -29,8 +31,9 @@ function CanvasPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
 
+  // react flow manages its own internal state for drag, selection, etc.
   const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesState] = useEdgesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [rfInstance, setRfInstance] = useState(null)
   const [roomName, setRoomName] = useState(slug)
   const [saveStatus, setSaveStatus] = useState('saved')
@@ -41,37 +44,13 @@ function CanvasPage() {
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || null
   const selectedEdge = edges.find(e => e.id === selectedEdgeId) || null
 
-  // ref to hold the debounce timer so we can clear it between changes
+  // refs to yjs objects so mutation handlers can access them without stale closures
+  const ydocRef = useRef(null)
+  const yNodesRef = useRef(null)
+  const yEdgesRef = useRef(null)
   const saveTimer = useRef(null)
 
-  // load canvas state on mount
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-
-    async function loadRoom() {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        const data = await response.json()
-        if (!response.ok) {
-          navigate('/dashboard')
-          return
-        }
-
-        setRoomName(data.room.name)
-        const { nodes: savedNodes, edges: savedEdges } = data.room.canvas_state
-        if (savedNodes.length) setNodes(savedNodes)
-        if (savedEdges.length) setEdges(savedEdges)
-      } catch (err) {
-        console.error(err)
-      }
-    }
-
-    loadRoom()
-  }, [slug])
-
-  // debounced save — waits 1.5s after last change before saving
+  // debounced save — waits 1.5s after last change before writing to the database
   function saveCanvas(updatedNodes, updatedEdges) {
     setSaveStatus('saving...')
     clearTimeout(saveTimer.current)
@@ -94,32 +73,120 @@ function CanvasPage() {
     }, 1500)
   }
 
+  useEffect(() => {
+    // declared outside the async fn so the cleanup function can reference them
+    let provider = null
+    let ydoc = null
+
+    const token = localStorage.getItem('token')
+
+    async function init() {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await response.json()
+
+        if (!response.ok) {
+          navigate('/dashboard')
+          return
+        }
+
+        setRoomName(data.room.name)
+
+        // load initial canvas state directly into react state so the canvas renders immediately
+        // yjs handles changes after this — this is just the initial paint
+        const { nodes: savedNodes, edges: savedEdges } = data.room.canvas_state
+        if (savedNodes.length) setNodes(savedNodes)
+        if (savedEdges.length) setEdges(savedEdges)
+
+        // create the local yjs document
+        ydoc = new Y.Doc()
+
+        // provider connects ydoc to the backend via socket.io
+        // any change to ydoc is automatically sent to the server and broadcast to all other clients in this room
+        provider = new SocketIOProvider(import.meta.env.VITE_API_URL, slug, ydoc, { autoConnect: true })
+
+        // get the shared arrays — every client in this room shares these exact same arrays
+        const yNodes = ydoc.getArray('nodes')
+        const yEdges = ydoc.getArray('edges')
+
+        // store in refs so mutation handlers (drop, connect, etc.) can access them
+        ydocRef.current = ydoc
+        yNodesRef.current = yNodes
+        yEdgesRef.current = yEdges
+
+        // observe yNodes — fires whenever nodes change (local or remote)
+        // this is how react state stays in sync with the yjs doc after the initial load
+        yNodes.observe(() => {
+          const arr = yNodes.toArray()
+          setNodes(arr)
+          saveCanvas(arr, yEdges.toArray())
+        })
+
+        // same for edges
+        yEdges.observe(() => {
+          const arr = yEdges.toArray()
+          setEdges(arr)
+          saveCanvas(yNodes.toArray(), arr)
+        })
+
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    init()
+
+    // clean up when the component unmounts (user navigates away)
+    return () => {
+      if (provider) provider.destroy()
+      if (ydoc) ydoc.destroy()
+    }
+  }, [slug])
+
   function onAttrChange(nodeId, key, value) {
-    setNodes(nds => {
-      const updated = nds.map(n =>
-        n.id === nodeId
-          ? { ...n, data: { ...n.data, attrs: { ...n.data.attrs, [key]: value } } }
-          : n
-      )
-      saveCanvas(updated, edges)
-      return updated
+    const yNodes = yNodesRef.current
+    const ydoc = ydocRef.current
+    if (!yNodes || !ydoc) return
+
+    const arr = yNodes.toArray()
+    const idx = arr.findIndex(n => n.id === nodeId)
+    if (idx === -1) return
+
+    const updatedNode = {
+      ...arr[idx],
+      data: { ...arr[idx].data, attrs: { ...arr[idx].data.attrs, [key]: value } }
+    }
+
+    // delete the old node and insert the updated one at the same index
+    // yjs broadcasts this change to all other clients automatically
+    ydoc.transact(() => {
+      yNodes.delete(idx, 1)
+      yNodes.insert(idx, [updatedNode])
     })
   }
 
   function onEdgeChange(edgeId, key, value) {
-    setEdges(eds => {
-      const updated = eds.map(e => {
-        if (e.id !== edgeId) return e
-        const newData = { ...e.data, [key]: value }
-        return {
-          ...e,
-          data: newData,
-          label: newData.label || newData.protocol || '',
-          style: { ...e.style, strokeDasharray: newData.mode === 'async' ? '6 3' : undefined },
-        }
-      })
-      saveCanvas(nodes, updated)
-      return updated
+    const yEdges = yEdgesRef.current
+    const ydoc = ydocRef.current
+    if (!yEdges || !ydoc) return
+
+    const arr = yEdges.toArray()
+    const idx = arr.findIndex(e => e.id === edgeId)
+    if (idx === -1) return
+
+    const newData = { ...arr[idx].data, [key]: value }
+    const updatedEdge = {
+      ...arr[idx],
+      data: newData,
+      label: newData.label || newData.protocol || '',
+      style: { ...arr[idx].style, strokeDasharray: newData.mode === 'async' ? '6 3' : undefined }
+    }
+
+    ydoc.transact(() => {
+      yEdges.delete(idx, 1)
+      yEdges.insert(idx, [updatedEdge])
     })
   }
 
@@ -132,17 +199,19 @@ function CanvasPage() {
     const protocol = getSmartProtocol(sourceType, targetType)
     const mode = getSmartMode(targetType)
 
-    setEdges(eds => {
-      const updated = addEdge({
-        ...params,
-        data: { protocol, mode, label: '' },
-        label: protocol,
-        style: { strokeDasharray: mode === 'async' ? '6 3' : undefined },
-      }, eds)
-      saveCanvas(nodes, updated)
-      return updated
-    })
-  }, [nodes, setEdges])
+    const newEdge = {
+      ...params,
+      id: `edge-${crypto.randomUUID()}`,
+      data: { protocol, mode, label: '' },
+      label: protocol,
+      style: { strokeDasharray: mode === 'async' ? '6 3' : undefined },
+    }
+
+    // push to yjs — observer fires and updates react state for all clients
+    if (yEdgesRef.current) {
+      yEdgesRef.current.push([newEdge])
+    }
+  }, [nodes])
 
   const onDragOver = useCallback((event) => {
     event.preventDefault()
@@ -160,17 +229,36 @@ function CanvasPage() {
     const attrs = { ...config.defaults }
     if (primaryAttr && primaryValue) attrs[primaryAttr] = primaryValue
 
-    setNodes(nds => {
-      const updated = nds.concat({
-        id: `${nodeType}-${nodeId++}`,
-        type: 'component',
-        position,
-        data: { nodeType, attrs },
-      })
-      saveCanvas(updated, edges)
-      return updated
+    const newNode = {
+      id: `${nodeType}-${nodeId++}`,
+      type: 'component',
+      position,
+      data: { nodeType, attrs },
+    }
+
+    // push to yjs — observer fires and updates react state for all clients
+    if (yNodesRef.current) {
+      yNodesRef.current.push([newNode])
+    }
+  }, [rfInstance])
+
+  // sync node position to yjs when drag ends so other clients see the new position
+  // we don't sync during drag because that would be hundreds of updates per second
+  const onNodeDragStop = useCallback((_, node) => {
+    const yNodes = yNodesRef.current
+    const ydoc = ydocRef.current
+    if (!yNodes || !ydoc) return
+
+    const arr = yNodes.toArray()
+    const idx = arr.findIndex(n => n.id === node.id)
+    if (idx === -1) return
+
+    const updatedNode = { ...arr[idx], position: node.position }
+    ydoc.transact(() => {
+      yNodes.delete(idx, 1)
+      yNodes.insert(idx, [updatedNode])
     })
-  }, [rfInstance, setNodes, edges])
+  }, [])
 
   function handleNodeClick(_, node) {
     setSelectedNodeId(node.id)
@@ -208,7 +296,7 @@ function CanvasPage() {
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesState}
+            onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onInit={setRfInstance}
             onDrop={onDrop}
@@ -216,6 +304,7 @@ function CanvasPage() {
             onNodeClick={handleNodeClick}
             onEdgeClick={handleEdgeClick}
             onPaneClick={handlePaneClick}
+            onNodeDragStop={onNodeDragStop}
           >
             <Background variant="dots" color="#1e1e22" gap={20} size={1.2} />
             <Controls />

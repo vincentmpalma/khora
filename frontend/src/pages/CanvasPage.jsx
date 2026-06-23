@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { apiFetch } from '../utils/api'
+import { toPng } from 'html-to-image'
+import { jsPDF } from 'jspdf'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge } from '@xyflow/react'
+import { ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge, getNodesBounds, getViewportForBounds } from '@xyflow/react'
 import * as Y from 'yjs'
 import { SocketIOProvider } from 'y-socket.io'
 import '@xyflow/react/dist/style.css'
@@ -30,7 +33,6 @@ function getSmartMode(targetType) {
   return 'sync'
 }
 
-let nodeId = 1
 
 function CanvasPage() {
   const { slug } = useParams()
@@ -42,6 +44,11 @@ function CanvasPage() {
   const [rfInstance, setRfInstance] = useState(null)
   const [roomName, setRoomName] = useState(slug)
   const [saveStatus, setSaveStatus] = useState('saved')
+
+  // isOwner controls whether the share button is visible — only the owner can generate invite links
+  const [isOwner, setIsOwner] = useState(false)
+  // shareStatus drives the share button label: null = 'Share', 'copied!' or 'error' after click
+  const [shareStatus, setShareStatus] = useState(null)
 
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState(null)
@@ -65,14 +72,10 @@ function CanvasPage() {
     setSaveStatus('saving...')
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
-      const token = localStorage.getItem('token')
       try {
-        await fetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
+        await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
           method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ canvas_state: { nodes: updatedNodes, edges: updatedEdges } })
         })
         setSaveStatus('saved')
@@ -92,17 +95,20 @@ function CanvasPage() {
 
     async function init() {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        const response = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`)
         const data = await response.json()
 
-        if (!response.ok) {
+        if (!response || !response.ok) {
           navigate('/dashboard')
           return
         }
 
         setRoomName(data.room.name)
+
+        // decode the jwt payload (no verification needed — just for display logic)
+        // compare with room owner_id to decide whether to show the share button
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        setIsOwner(data.room.owner_id === payload.id)
 
         // load initial canvas state directly into react state so the canvas renders immediately
         // yjs handles changes after this — this is just the initial paint
@@ -253,7 +259,7 @@ function CanvasPage() {
     if (primaryAttr && primaryValue) attrs[primaryAttr] = primaryValue
 
     const newNode = {
-      id: `${nodeType}-${nodeId++}`,
+      id: `${nodeType}-${crypto.randomUUID()}`,
       type: 'component',
       position,
       data: { nodeType, attrs },
@@ -299,6 +305,101 @@ function CanvasPage() {
     provider.awareness.setLocalStateField('cursor', null)
   }, [])
 
+  // fetches the room's invite token from the backend, builds the /join/<token> url,
+  // and copies it to clipboard — only the owner can call this route
+  async function handleShare() {
+    try {
+      const res = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}/invite`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      // construct the full invite url using the current origin so it works on any host
+      const link = `${window.location.origin}/join/${data.invite_token}`
+      await navigator.clipboard.writeText(link)
+      setShareStatus('copied!')
+      setTimeout(() => setShareStatus(null), 2000)
+    } catch (err) {
+      setShareStatus('error')
+      setTimeout(() => setShareStatus(null), 2000)
+    }
+  }
+
+  // html-to-image clones the dom and serializes it, but css custom properties
+  // (like --xy-edge-stroke-default) don't resolve inside the cloned svg context,
+  // so all edge paths render with no stroke (invisible) and label rects render black.
+  // fix: read the browser-resolved computed values and set them as inline styles
+  // before capture, then restore afterward so the live canvas is unchanged.
+  async function getExportDataUrl() {
+    if (!rfInstance) return null
+    const nodes = rfInstance.getNodes()
+    if (!nodes.length) return null
+
+    const W = 1920
+    const H = 1080
+    const bounds = getNodesBounds(nodes)
+    const { x, y, zoom } = getViewportForBounds(bounds, W, H, 0.5, 2, 0.1)
+    const viewport = document.querySelector('.react-flow__viewport')
+
+    // collect all svg primitives that need style inlining
+    const svgEls = viewport.querySelectorAll('path, line, polyline, polygon, rect, circle, ellipse, text, tspan')
+    const saved = []
+    svgEls.forEach(el => {
+      saved.push({ el, prev: el.getAttribute('style') || '' })
+      const c = window.getComputedStyle(el)
+      el.style.stroke = c.stroke
+      el.style.strokeWidth = c.strokeWidth
+      el.style.strokeDasharray = c.strokeDasharray
+      el.style.fill = c.fill
+      el.style.opacity = c.opacity
+      el.style.fontSize = c.fontSize
+      el.style.fontFamily = c.fontFamily
+    })
+
+    const dataUrl = await toPng(viewport, {
+      backgroundColor: '#13131a',
+      width: W,
+      height: H,
+      style: {
+        width: `${W}px`,
+        height: `${H}px`,
+        transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+        transformOrigin: 'top left',
+      },
+    })
+
+    // restore live dom to original state
+    saved.forEach(({ el, prev }) => el.setAttribute('style', prev))
+    return dataUrl
+  }
+
+  async function handleExportPng() {
+    const dataUrl = await getExportDataUrl()
+    if (!dataUrl) return
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = `${roomName}.png`
+    a.click()
+  }
+
+  // same capture, but fit into an a4 landscape page
+  // using mm units avoids jspdf's internal px scaling which causes white strips
+  async function handleExportPdf() {
+    const dataUrl = await getExportDataUrl()
+    if (!dataUrl) return
+
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+
+    // scale image to fill the page while preserving aspect ratio
+    const imgRatio = 1920 / 1080
+    const pageRatio = pageW / pageH
+    const w = imgRatio > pageRatio ? pageW : pageH * imgRatio
+    const h = imgRatio > pageRatio ? pageW / imgRatio : pageH
+    pdf.addImage(dataUrl, 'PNG', (pageW - w) / 2, (pageH - h) / 2, w, h)
+    pdf.save(`${roomName}.pdf`)
+  }
+
   function handleNodeClick(_, node) {
     setSelectedNodeId(node.id)
     setSelectedEdgeId(null)
@@ -324,6 +425,13 @@ function CanvasPage() {
         <button className="btn-ghost" onClick={() => navigate('/dashboard')}>← Back</button>
         <span className="canvas-room-name">{roomName}</span>
         <span className="canvas-save-status">{saveStatus}</span>
+        <button className="btn-ghost" onClick={handleExportPng}>Export PNG</button>
+        <button className="btn-ghost" onClick={handleExportPdf}>Export PDF</button>
+        {isOwner && (
+          <button className="btn-ghost" onClick={handleShare}>
+            {shareStatus || 'Share'}
+          </button>
+        )}
       </div>
 
       <div className="canvas-body">

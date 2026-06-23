@@ -20,10 +20,23 @@
 }
 
 .nav-logo {
-  font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+.nav-logo-text {
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 18px;
   font-weight: 600;
-  letter-spacing: -0.4px;
   color: var(--text-primary);
+  letter-spacing: -0.3px;
 }
 
 .nav-actions {

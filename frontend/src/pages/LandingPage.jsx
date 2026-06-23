@@ -87,7 +87,10 @@ function LandingPage() {
   return (
     <div className="landing">
       <nav className="nav">
-        <span className="nav-logo">Khora</span>
+        <div className="nav-logo">
+          <img src="/logos/khora-solar-coil-white.png" alt="" className="nav-logo-img" />
+          <span className="nav-logo-text">Khora</span>
+        </div>
         <div className="nav-actions">
           <button className="btn-ghost" onClick={() => navigate('/login')}>Sign In</button>
           <button className="btn-primary" onClick={() => navigate('/register')}>Get Started</button>

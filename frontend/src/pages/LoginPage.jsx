@@ -34,7 +34,10 @@ function LoginPage() {
 
   return (
     <div className="auth-container">
-      <div className="auth-wordmark">Khora</div>
+      <div className="auth-wordmark">
+        <img src="/logos/khora-solar-coil-white.png" alt="" className="auth-wordmark-img" />
+        <span className="auth-wordmark-text">Khora</span>
+      </div>
       <div className="auth-card">
         <h1 className="auth-title">Welcome back</h1>
         <p className="auth-subtitle">Sign in to your Khora account</p>

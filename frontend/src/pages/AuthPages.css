@@ -9,10 +9,23 @@
 }
 
 .auth-wordmark {
-  font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-wordmark-img {
+  height: 48px;
+  width: auto;
+  display: block;
+}
+
+.auth-wordmark-text {
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.4px;
   color: var(--text-primary);
+  letter-spacing: -0.3px;
 }
 
 .auth-card {

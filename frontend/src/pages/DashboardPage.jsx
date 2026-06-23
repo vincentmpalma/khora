@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { apiFetch } from '../utils/api'
 import './DashboardPage.css'
 
 const fakeRooms = [
@@ -36,15 +37,10 @@ function DashboardPage() {
 
     async function fetchRooms() {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        const response = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms`)
+        if (!response) return
         const data = await response.json()
-        if (response.ok) {
-          setRooms(data.rooms)
-        } else {
-          console.error(data.error)
-        }
+        if (response.ok) setRooms(data.rooms)
       } catch (err) {
         console.error(err)
       }
@@ -62,20 +58,15 @@ function DashboardPage() {
   async function handleCreateRoom() {
     if (!roomName.trim()) return
 
-    const token = localStorage.getItem('token')
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/rooms`, {
+      const response = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: roomName })
       })
-
+      if (!response) return
       const data = await response.json()
       if (!response.ok) return
-
       setShowModal(false)
       setRoomName('')
       navigate(`/room/${data.room.slug}`)
@@ -87,7 +78,10 @@ function DashboardPage() {
   return (
     <div className="dashboard">
       <nav className="dash-nav">
-        <span className="nav-logo">Khora</span>
+        <div className="nav-logo">
+          <img src="/logos/khora-solar-coil-white.png" alt="" className="nav-logo-img" />
+          <span className="nav-logo-text">Khora</span>
+        </div>
         <button className="btn-ghost" onClick={handleSignOut}>Sign Out</button>
       </nav>
 

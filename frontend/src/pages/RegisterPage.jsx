@@ -40,7 +40,10 @@ function RegisterPage() {
 
   return (
     <div className="auth-container">
-      <div className="auth-wordmark">Khora</div>
+      <div className="auth-wordmark">
+        <img src="/logos/khora-solar-coil-white.png" alt="" className="auth-wordmark-img" />
+        <span className="auth-wordmark-text">Khora</span>
+      </div>
       <div className="auth-card">
         <h1 className="auth-title">Create an account</h1>
         <p className="auth-subtitle">Start designing with your team</p>

@@ -1,0 +1,4 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;
+UPDATE users SET username = email WHERE username IS NULL;
+ALTER TABLE users ALTER COLUMN username SET NOT NULL;
+ALTER TABLE users ALTER COLUMN username SET DEFAULT '';

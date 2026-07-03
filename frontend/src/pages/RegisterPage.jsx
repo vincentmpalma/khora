@@ -6,6 +6,7 @@ import './AuthPages.css'
 function RegisterPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -20,7 +21,7 @@ function RegisterPage() {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, username, password })
       })
       const data = await response.json()
       if (!response.ok) { setError(data.error || 'registration failed'); return }
@@ -50,6 +51,17 @@ function RegisterPage() {
               placeholder="you@example.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="username">Username <span className="form-label-hint">optional</span></label>
+            <input
+              id="username"
+              type="text"
+              placeholder="e.g. vince"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
             />
           </div>
 

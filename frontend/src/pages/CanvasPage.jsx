@@ -70,6 +70,7 @@ function CanvasPage() {
 
   // debounced save — waits 1.5s after last change before writing to the database
   function saveCanvas(updatedNodes, updatedEdges) {
+    if (!localStorage.getItem('token')) return  // guests don't save
     setSaveStatus('saving...')
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
@@ -92,31 +93,45 @@ function CanvasPage() {
     let provider = null
     let ydoc = null
 
-    const token = localStorage.getItem('token')
-
     async function init() {
       try {
-        const response = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`)
-        const data = await response.json()
+        const authToken = localStorage.getItem('token')
+        const guestSession = sessionStorage.getItem('guestSession')
+        const guest = guestSession ? JSON.parse(guestSession) : null
+        const isGuest = !authToken
 
-        if (!response || !response.ok) {
-          navigate('/dashboard')
-          return
+        if (isGuest) {
+          // guests must have arrived via an invite link — no direct room access
+          if (!guest || guest.roomSlug !== slug) {
+            navigate('/')
+            return
+          }
+          setRoomName(guest.roomName)
+          setIsOwner(false)
+          // canvas state arrives via yjs sync — no http fetch needed
+        } else {
+          const response = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`)
+          const data = await response.json()
+
+          if (!response || !response.ok) {
+            navigate('/dashboard')
+            return
+          }
+
+          setRoomName(data.room.name)
+
+          // decode the jwt payload (no verification needed — just for display logic)
+          // compare with room owner_id to decide whether to show the share button
+          const payload = JSON.parse(atob(authToken.split('.')[1]))
+          setIsOwner(data.room.owner_id === payload.id)
+
+          // load initial canvas state directly into react state so the canvas renders immediately
+          // yjs handles changes after this — this is just the initial paint
+          const savedNodes = data.room.canvas_state?.nodes || []
+          const savedEdges = data.room.canvas_state?.edges || []
+          if (savedNodes.length) setNodes(savedNodes)
+          if (savedEdges.length) setEdges(savedEdges)
         }
-
-        setRoomName(data.room.name)
-
-        // decode the jwt payload (no verification needed — just for display logic)
-        // compare with room owner_id to decide whether to show the share button
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        setIsOwner(data.room.owner_id === payload.id)
-
-        // load initial canvas state directly into react state so the canvas renders immediately
-        // yjs handles changes after this — this is just the initial paint
-        const savedNodes = data.room.canvas_state?.nodes || []
-        const savedEdges = data.room.canvas_state?.edges || []
-        if (savedNodes.length) setNodes(savedNodes)
-        if (savedEdges.length) setEdges(savedEdges)
 
         // create the local yjs document
         ydoc = new Y.Doc()
@@ -135,13 +150,25 @@ function CanvasPage() {
         yEdgesRef.current = yEdges
         providerRef.current = provider
 
+        // publish this user's display name into awareness so other clients can show it on their cursor
+        try {
+          let name
+          if (isGuest) {
+            name = guest.guestName
+          } else {
+            const payload = JSON.parse(atob(authToken.split('.')[1]))
+            name = payload.username || payload.email?.split('@')[0] || 'User'
+          }
+          provider.awareness.setLocalStateField('user', { name, isGuest })
+        } catch {}
+
         // update remote cursors whenever any client's awareness state changes
         provider.awareness.on('change', () => {
           const states = provider.awareness.getStates()
           const next = new Map()
           states.forEach((state, clientId) => {
             if (clientId !== provider.awareness.clientID && state.cursor) {
-              next.set(clientId, state.cursor)
+              next.set(clientId, { ...state.cursor, username: state.user?.name })
             }
           })
           setRemoteCursors(next)
@@ -535,6 +562,11 @@ function CanvasPage() {
                 <svg width="16" height="20" viewBox="0 0 16 20" fill={color}>
                   <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L11 11 Z" />
                 </svg>
+                {cursor.username && (
+                  <div className="remote-cursor-label" style={{ background: color }}>
+                    {cursor.username}
+                  </div>
+                )}
               </div>
             )
           })}

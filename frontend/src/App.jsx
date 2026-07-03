@@ -15,8 +15,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="/room/:slug" element={<ProtectedRoute><CanvasPage /></ProtectedRoute>} />
-        <Route path="/join/:token" element={<ProtectedRoute><JoinPage /></ProtectedRoute>} />
+        <Route path="/room/:slug" element={<CanvasPage />} />
+        <Route path="/join/:token" element={<JoinPage />} />
       </Routes>
     </BrowserRouter>
   )

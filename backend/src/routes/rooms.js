@@ -48,6 +48,24 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
+// public guest preview — validates invite token and returns slug + name without requiring auth
+// used so unauthenticated users can see the room name before choosing a guest display name
+router.get('/guest-join/:token', async (req, res) => {
+  const { token } = req.params
+  try {
+    const result = await pool.query(
+      'SELECT slug, name FROM rooms WHERE invite_token = $1',
+      [token]
+    )
+    const room = result.rows[0]
+    if (!room) return res.status(404).json({ error: 'invalid invite link' })
+    res.json({ slug: room.slug, name: room.name })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'server error' })
+  }
+})
+
 // accept an invite link
 // the token in the url is looked up in the rooms table — if it matches, the user is added
 // to room_members so they can access the room going forward

@@ -73,6 +73,18 @@
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-label-hint {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.7;
 }
 
 .form-group input {

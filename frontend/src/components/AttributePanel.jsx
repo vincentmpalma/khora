@@ -1,31 +1,36 @@
+import * as Icons from 'lucide-react'
 import { nodeConfig } from './nodes/nodeConfig'
 import './AttributePanel.css'
 
-// shown on the right when a node is selected — lets you edit that node's attributes
 function AttributePanel({ node, onChange }) {
   if (!node) return null
 
   const config = nodeConfig[node.data.nodeType] || nodeConfig['Custom']
+  const Icon = Icons[config.icon] || Icons.Box
   const attrOptions = config.attrOptions || {}
 
   function handleChange(key, value) {
-    // tell CanvasPage to update this node's attrs with the new value
     onChange(node.id, key, value)
+  }
+
+  // camelCase → "Title Case" for attr labels
+  function toLabel(key) {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
   }
 
   return (
     <div className="attr-panel">
       <div className="attr-panel-header">
+        <span className="attr-panel-icon" style={{ color: config.color }}>
+          <Icon size={14} strokeWidth={1.7} />
+        </span>
         <span className="attr-panel-title">{node.data.nodeType}</span>
       </div>
 
       <div className="attr-panel-body">
         {Object.entries(attrOptions).map(([key, def]) => (
           <div key={key} className="attr-row">
-            {/* capitalize the key for the label e.g. "stickySessions" → "Sticky Sessions" */}
-            <label className="attr-label">
-              {key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
-            </label>
+            <label className="attr-label">{toLabel(key)}</label>
 
             {def.type === 'select' ? (
               <select
@@ -37,12 +42,21 @@ function AttributePanel({ node, onChange }) {
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
+            ) : def.type === 'textarea' ? (
+              <textarea
+                className="attr-textarea"
+                value={node.data.attrs[key] ?? ''}
+                onChange={e => handleChange(key, e.target.value)}
+                placeholder="Add notes…"
+                rows={3}
+              />
             ) : (
               <input
                 className="attr-input"
                 type="text"
                 value={node.data.attrs[key] ?? ''}
                 onChange={e => handleChange(key, e.target.value)}
+                placeholder={def.placeholder || ''}
               />
             )}
           </div>

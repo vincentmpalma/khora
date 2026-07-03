@@ -38,7 +38,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, name, slug, created_at FROM rooms WHERE owner_id = $1 ORDER BY created_at DESC',
+      'SELECT id, name, slug, created_at, canvas_state FROM rooms WHERE owner_id = $1 ORDER BY created_at DESC',
       [owner_id]
     )
     res.json({ rooms: result.rows })
@@ -147,7 +147,7 @@ router.post('/:slug/invite', authMiddleware, async (req, res) => {
 // allows both the owner and invited members to save, since collaborators can also make edits
 router.patch('/:slug', authMiddleware, async (req, res) => {
   const { slug } = req.params
-  const { canvas_state } = req.body
+  const { canvas_state, name } = req.body
   const user_id = req.user.id
 
   try {
@@ -168,7 +168,32 @@ router.patch('/:slug', authMiddleware, async (req, res) => {
       }
     }
 
-    await pool.query('UPDATE rooms SET canvas_state = $1 WHERE id = $2', [canvas_state, room.id])
+    if (canvas_state !== undefined) {
+      await pool.query('UPDATE rooms SET canvas_state = $1 WHERE id = $2', [canvas_state, room.id])
+    }
+    if (name && room.owner_id === user_id) {
+      await pool.query('UPDATE rooms SET name = $1 WHERE id = $2', [name.trim(), room.id])
+    }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'server error' })
+  }
+})
+
+// delete a room — owner only
+router.delete('/:slug', authMiddleware, async (req, res) => {
+  const { slug } = req.params
+  const owner_id = req.user.id
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM rooms WHERE slug = $1 AND owner_id = $2 RETURNING id',
+      [slug, owner_id]
+    )
+    if (result.rowCount === 0) {
+      return res.status(403).json({ error: 'not found or forbidden' })
+    }
     res.json({ ok: true })
   } catch (err) {
     console.error(err)

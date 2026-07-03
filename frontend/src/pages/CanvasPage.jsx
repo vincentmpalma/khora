@@ -49,6 +49,7 @@ function CanvasPage() {
   const [isOwner, setIsOwner] = useState(false)
   // shareStatus drives the share button label: null = 'Share', 'copied!' or 'error' after click
   const [shareStatus, setShareStatus] = useState(null)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
 
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState(null)
@@ -112,7 +113,8 @@ function CanvasPage() {
 
         // load initial canvas state directly into react state so the canvas renders immediately
         // yjs handles changes after this — this is just the initial paint
-        const { nodes: savedNodes, edges: savedEdges } = data.room.canvas_state
+        const savedNodes = data.room.canvas_state?.nodes || []
+        const savedEdges = data.room.canvas_state?.edges || []
         if (savedNodes.length) setNodes(savedNodes)
         if (savedEdges.length) setEdges(savedEdges)
 
@@ -145,10 +147,16 @@ function CanvasPage() {
           setRemoteCursors(next)
         })
 
+        // once yjs sends us non-empty data we know the server sync is complete
+        // before that, don't let an empty yjs array wipe out the db-loaded nodes
+        let yReady = false
+
         // observe yNodes — fires whenever nodes change (local or remote)
         // this is how react state stays in sync with the yjs doc after the initial load
         yNodes.observe(() => {
           const arr = yNodes.toArray()
+          if (arr.length > 0) yReady = true
+          if (!yReady) return
           setNodes(arr)
           saveCanvas(arr, yEdges.toArray())
         })
@@ -231,6 +239,7 @@ function CanvasPage() {
     const newEdge = {
       ...params,
       id: `edge-${crypto.randomUUID()}`,
+      type: 'smoothstep',
       data: { protocol, mode, label: '' },
       label: protocol,
       style: { strokeDasharray: mode === 'async' ? '6 3' : undefined },
@@ -307,6 +316,21 @@ function CanvasPage() {
 
   // fetches the room's invite token from the backend, builds the /join/<token> url,
   // and copies it to clipboard — only the owner can call this route
+  async function handleTitleSave() {
+    setIsEditingTitle(false)
+    const trimmed = roomName.trim()
+    if (!trimmed) return
+    try {
+      await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed })
+      })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   async function handleShare() {
     try {
       const res = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}/invite`, {
@@ -387,16 +411,10 @@ function CanvasPage() {
     const dataUrl = await getExportDataUrl()
     if (!dataUrl) return
 
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
-    const pageW = pdf.internal.pageSize.getWidth()
-    const pageH = pdf.internal.pageSize.getHeight()
-
-    // scale image to fill the page while preserving aspect ratio
-    const imgRatio = 1920 / 1080
-    const pageRatio = pageW / pageH
-    const w = imgRatio > pageRatio ? pageW : pageH * imgRatio
-    const h = imgRatio > pageRatio ? pageW / imgRatio : pageH
-    pdf.addImage(dataUrl, 'PNG', (pageW - w) / 2, (pageH - h) / 2, w, h)
+    const imgW = 1920
+    const imgH = 1080
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [imgW, imgH] })
+    pdf.addImage(dataUrl, 'PNG', 0, 0, imgW, imgH)
     pdf.save(`${roomName}.pdf`)
   }
 
@@ -419,19 +437,57 @@ function CanvasPage() {
     ? <EdgePanel edge={selectedEdge} onChange={onEdgeChange} />
     : <AttributePanel node={selectedNode} onChange={onAttrChange} />
 
+  const saveState = saveStatus === 'saving...' ? 'saving'
+    : saveStatus === 'error saving' ? 'error'
+    : 'saved'
+
   return (
     <div className="canvas-page">
       <div className="canvas-topbar">
-        <button className="btn-ghost" onClick={() => navigate('/dashboard')}>← Back</button>
-        <span className="canvas-room-name">{roomName}</span>
-        <span className="canvas-save-status">{saveStatus}</span>
-        <button className="btn-ghost" onClick={handleExportPng}>Export PNG</button>
-        <button className="btn-ghost" onClick={handleExportPdf}>Export PDF</button>
-        {isOwner && (
-          <button className="btn-ghost" onClick={handleShare}>
-            {shareStatus || 'Share'}
+        <div className="topbar-left">
+          <button className="topbar-back" onClick={() => navigate('/dashboard')}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 2.5L4.5 7L9 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back
           </button>
-        )}
+        </div>
+        <div className="topbar-center">
+          <div className={`save-indicator save-indicator--${saveState}`}>
+            <span className="save-dot" />
+          </div>
+          {isOwner && isEditingTitle ? (
+            <input
+              className="canvas-title-input"
+              value={roomName}
+              onChange={e => setRoomName(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleTitleSave()
+                if (e.key === 'Escape') setIsEditingTitle(false)
+              }}
+              autoFocus
+            />
+          ) : (
+            <span
+              className={`canvas-room-name${isOwner ? ' canvas-room-name--editable' : ''}`}
+              onClick={() => isOwner && setIsEditingTitle(true)}
+            >
+              {roomName}
+            </span>
+          )}
+        </div>
+        <div className="topbar-right">
+          <div className="topbar-btn-group">
+            <button className="topbar-btn" onClick={handleExportPng}>PNG</button>
+            <button className="topbar-btn topbar-btn--sep" onClick={handleExportPdf}>PDF</button>
+          </div>
+          {isOwner && (
+            <button className="topbar-share" onClick={handleShare}>
+              {shareStatus || 'Share'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="canvas-body">
@@ -457,8 +513,16 @@ function CanvasPage() {
             onEdgeClick={handleEdgeClick}
             onPaneClick={handlePaneClick}
             onNodeDragStop={onNodeDragStop}
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              style: { strokeWidth: 1.5 },
+              labelBgPadding: [4, 7],
+              labelBgBorderRadius: 4,
+              labelBgStyle: { fill: '#0d0d11', fillOpacity: 0.95 },
+              labelStyle: { fill: '#56565e', fontSize: 10, fontFamily: "'Hanken Grotesk', -apple-system, sans-serif", fontWeight: 500, letterSpacing: '0.3px' },
+            }}
           >
-            <Background variant="dots" color="#1e1e22" gap={20} size={1.2} />
+            <Background variant="dots" color="#222228" gap={22} size={1} />
             <Controls />
           </ReactFlow>
           {rfInstance && [...remoteCursors.entries()].map(([clientId, cursor]) => {

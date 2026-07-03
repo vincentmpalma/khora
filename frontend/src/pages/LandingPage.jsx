@@ -1,83 +1,79 @@
+import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ReactFlow, useNodesState, useEdgesState, addEdge, Background } from '@xyflow/react'
+import * as Icons from 'lucide-react'
+import ComponentNode from '../components/nodes/ComponentNode'
 import './LandingPage.css'
 
-function CanvasPreview() {
+const nodeTypes = { component: ComponentNode }
+
+const defaultEdgeOptions = {
+  type: 'smoothstep',
+  style: { strokeWidth: 1.5 },
+  labelBgPadding: [4, 7],
+  labelBgBorderRadius: 4,
+  labelBgStyle: { fill: '#0d0d11', fillOpacity: 0.95 },
+  labelStyle: { fill: '#56565e', fontSize: 10, fontFamily: "'Hanken Grotesk', -apple-system, sans-serif", fontWeight: 500, letterSpacing: '0.3px' },
+}
+
+const initialNodes = [
+  { id: '1', type: 'component', position: { x: 40,  y: 160 }, data: { nodeType: 'Client',        attrs: { kind: 'Web',          protocol: 'HTTPS'       } } },
+  { id: '2', type: 'component', position: { x: 290, y: 160 }, data: { nodeType: 'API Gateway',   attrs: { authMethod: 'JWT',     rateLimiting: 'Per-User' } } },
+  { id: '3', type: 'component', position: { x: 560, y: 60  }, data: { nodeType: 'Service',       attrs: { role: 'API Server',   scaling: 'Stateless / Horizontal' } } },
+  { id: '4', type: 'component', position: { x: 560, y: 280 }, data: { nodeType: 'Message Queue', attrs: { type: 'Kafka',        delivery: 'At-least-once' } } },
+  { id: '5', type: 'component', position: { x: 830, y: 60  }, data: { nodeType: 'SQL Database',  attrs: { engine: 'PostgreSQL', replication: 'Primary-Replica' } } },
+  { id: '6', type: 'component', position: { x: 830, y: 280 }, data: { nodeType: 'Worker',        attrs: { role: 'Worker',       concurrency: '4' } } },
+]
+
+const initialEdges = [
+  { id: 'e1', source: '1', target: '2', label: 'HTTPS'   },
+  { id: 'e2', source: '2', target: '3', label: 'gRPC'    },
+  { id: 'e3', source: '2', target: '4', label: 'Pub/Sub' },
+  { id: 'e4', source: '3', target: '5', label: 'SQL'     },
+  { id: 'e5', source: '4', target: '6', label: 'Consume' },
+]
+
+const features = [
+  {
+    icon: 'Layers',
+    title: 'Visual system design',
+    desc: 'Drag services, databases, queues, and APIs onto an infinite canvas and arrange them into clear architecture diagrams.',
+  },
+  {
+    icon: 'GitBranch',
+    title: 'Protocol-aware connections',
+    desc: 'Label every edge with a protocol — HTTPS, gRPC, SQL, Pub/Sub — so data flows are always explicit.',
+  },
+  {
+    icon: 'Save',
+    title: 'Save and share',
+    desc: 'Sign in to persist canvases, reopen rooms, invite collaborators, and export diagrams as PNG or PDF.',
+  },
+]
+
+function OfflineCanvas() {
+  const [nodes, , onNodesChange] = useNodesState(initialNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+  const onConnect = useCallback(
+    params => setEdges(eds => addEdge({ ...params }, eds)),
+    [setEdges]
+  )
+
   return (
-    <div className="preview-frame">
-      <div className="preview-topbar">
-        <div className="preview-dot" />
-        <div className="preview-dot" />
-        <div className="preview-dot" />
-        <span className="preview-title">Untitled Architecture</span>
-        <span className="preview-saved">Saved</span>
-      </div>
-      <svg
-        viewBox="0 0 860 320"
-        xmlns="http://www.w3.org/2000/svg"
-        className="preview-canvas"
-        aria-hidden="true"
-      >
-        <defs>
-          <pattern id="pg" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="0" cy="0" r="0.75" fill="#252528" />
-          </pattern>
-          <marker id="arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
-            <polygon points="0 0, 7 2.5, 0 5" fill="#3a3a3c" />
-          </marker>
-        </defs>
-
-        {/* background */}
-        <rect width="860" height="320" fill="#0c0c0e" />
-        <rect width="860" height="320" fill="url(#pg)" />
-
-        {/* connection lines */}
-        <line x1="170" y1="145" x2="218" y2="145" stroke="#2a2a2e" strokeWidth="1.5" markerEnd="url(#arr)" />
-        <line x1="390" y1="145" x2="438" y2="145" stroke="#2a2a2e" strokeWidth="1.5" markerEnd="url(#arr)" />
-        <line x1="610" y1="145" x2="658" y2="145" stroke="#2a2a2e" strokeWidth="1.5" markerEnd="url(#arr)" />
-        <line x1="305" y1="170" x2="305" y2="233" stroke="#2a2a2e" strokeWidth="1.5" strokeDasharray="5 3" markerEnd="url(#arr)" />
-
-        {/* protocol labels */}
-        <text x="194" y="136" textAnchor="middle" fontSize="9.5" fill="#484850" fontFamily="-apple-system, sans-serif">HTTPS</text>
-        <text x="414" y="136" textAnchor="middle" fontSize="9.5" fill="#484850" fontFamily="-apple-system, sans-serif">gRPC</text>
-        <text x="634" y="136" textAnchor="middle" fontSize="9.5" fill="#484850" fontFamily="-apple-system, sans-serif">SQL</text>
-        <text x="314" y="213" fontSize="9.5" fill="#484850" fontFamily="-apple-system, sans-serif">Pub/Sub</text>
-
-        {/* node: Client */}
-        <rect x="30" y="120" width="140" height="50" rx="8" fill="#1c1c1e" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        <circle cx="46" cy="134" r="3.5" fill="#a78bfa" />
-        <text x="100" y="142" textAnchor="middle" fontSize="12" fontWeight="500" fill="#e5e5e7" fontFamily="-apple-system, sans-serif">Client</text>
-        <text x="100" y="157" textAnchor="middle" fontSize="10" fill="#555" fontFamily="-apple-system, sans-serif">Browser</text>
-
-        {/* node: API Gateway */}
-        <rect x="220" y="120" width="170" height="50" rx="8" fill="#1c1c1e" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        <circle cx="236" cy="134" r="3.5" fill="#0A84FF" />
-        <text x="305" y="142" textAnchor="middle" fontSize="12" fontWeight="500" fill="#e5e5e7" fontFamily="-apple-system, sans-serif">API Gateway</text>
-        <text x="305" y="157" textAnchor="middle" fontSize="10" fill="#555" fontFamily="-apple-system, sans-serif">nginx</text>
-
-        {/* node: User Service — selected */}
-        <rect x="440" y="120" width="170" height="50" rx="8" fill="rgba(10,132,255,0.07)" stroke="rgba(10,132,255,0.45)" strokeWidth="1.5" />
-        <circle cx="456" cy="134" r="3.5" fill="#34d399" />
-        <text x="525" y="142" textAnchor="middle" fontSize="12" fontWeight="500" fill="#e5e5e7" fontFamily="-apple-system, sans-serif">User Service</text>
-        <text x="525" y="157" textAnchor="middle" fontSize="10" fill="#555" fontFamily="-apple-system, sans-serif">Node.js</text>
-
-        {/* node: PostgreSQL */}
-        <rect x="660" y="120" width="170" height="50" rx="8" fill="#1c1c1e" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        <circle cx="676" cy="134" r="3.5" fill="#f43f5e" />
-        <text x="745" y="142" textAnchor="middle" fontSize="12" fontWeight="500" fill="#e5e5e7" fontFamily="-apple-system, sans-serif">PostgreSQL</text>
-        <text x="745" y="157" textAnchor="middle" fontSize="10" fill="#555" fontFamily="-apple-system, sans-serif">Primary DB</text>
-
-        {/* node: Message Queue */}
-        <rect x="220" y="235" width="170" height="50" rx="8" fill="#1c1c1e" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
-        <circle cx="236" cy="249" r="3.5" fill="#fb923c" />
-        <text x="305" y="257" textAnchor="middle" fontSize="12" fontWeight="500" fill="#e5e5e7" fontFamily="-apple-system, sans-serif">Message Queue</text>
-        <text x="305" y="272" textAnchor="middle" fontSize="10" fill="#555" fontFamily="-apple-system, sans-serif">RabbitMQ</text>
-
-        {/* collaborator cursor */}
-        <polygon points="588,188 588,202 594,198" fill="#0A84FF" />
-        <rect x="596" y="183" width="38" height="17" rx="4" fill="#0A84FF" />
-        <text x="615" y="195" textAnchor="middle" fontSize="10" fill="white" fontWeight="500" fontFamily="-apple-system, sans-serif">Sofia</text>
-      </svg>
-    </div>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      nodeTypes={nodeTypes}
+      defaultEdgeOptions={defaultEdgeOptions}
+      fitView
+      fitViewOptions={{ padding: 0.28 }}
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background variant="dots" color="#222228" gap={22} size={1} />
+    </ReactFlow>
   )
 }
 
@@ -86,30 +82,67 @@ function LandingPage() {
 
   return (
     <div className="landing">
-      <nav className="nav">
+      <nav className="land-nav">
         <div className="nav-logo">
           <img src="/logos/khora-solar-coil-white.png" alt="" className="nav-logo-img" />
           <span className="nav-logo-text">Khora</span>
         </div>
         <div className="nav-actions">
-          <button className="btn-ghost" onClick={() => navigate('/login')}>Sign In</button>
-          <button className="btn-primary" onClick={() => navigate('/register')}>Get Started</button>
+          <button className="btn-ghost" onClick={() => navigate('/login')}>Sign in</button>
+          <button className="btn-primary" onClick={() => navigate('/register')}>Get started</button>
         </div>
       </nav>
 
       <section className="hero">
-        <h1 className="hero-title">Design system architectures together.</h1>
+        <p className="hero-eyebrow">System architecture design tool</p>
+        <h1 className="hero-title">A canvas for designing<br />software systems.</h1>
         <p className="hero-subtitle">
-          A collaborative canvas for mapping services, data flows, and infrastructure with your team in real time.
+          Map services, databases, queues, and APIs on a fast visual workspace built for software engineers.
         </p>
         <div className="hero-actions">
-          <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Get Started</button>
-          <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign In</button>
+          <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Start designing</button>
+          <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign in</button>
         </div>
       </section>
 
-      <section className="preview-section">
-        <CanvasPreview />
+      <section className="demo-section">
+        <div className="demo-label-row">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span className="demo-label">Try the canvas — no account required</span>
+            <span className="demo-interactive-hint">Interactive demo</span>
+          </div>
+          <button className="demo-save-hint" onClick={() => navigate('/register')}>
+            Sign in to save your work →
+          </button>
+        </div>
+        <div className="demo-frame">
+          <OfflineCanvas />
+        </div>
+      </section>
+
+      <section className="features-section">
+        <div className="features-grid">
+          {features.map(f => {
+            const Icon = Icons[f.icon]
+            return (
+              <div key={f.title} className="feature-card">
+                <span className="feature-icon">
+                  {Icon && <Icon size={16} strokeWidth={1.6} />}
+                </span>
+                <p className="feature-title">{f.title}</p>
+                <p className="feature-desc">{f.desc}</p>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="cta-section">
+        <p className="cta-title">Start with a blank canvas.</p>
+        <div className="cta-actions">
+          <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Start designing</button>
+          <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign in</button>
+        </div>
       </section>
     </div>
   )

@@ -3,48 +3,74 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px 20px;
-  min-width: 120px;
+  padding: 18px 26px;
+  min-width: 148px;
   text-align: center;
   font-family: var(--font);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: #15151a;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 11px;
   cursor: default;
-  transition: border-color 0.15s;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .cn-wrapper:hover {
-  border-color: var(--border-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.react-flow__node.selected .cn-wrapper {
+  border-color: rgba(10, 132, 255, 0.6);
+  background: rgba(10, 132, 255, 0.03);
+  box-shadow:
+    0 0 0 1px rgba(10, 132, 255, 0.22),
+    0 2px 12px rgba(10, 132, 255, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.45);
 }
 
 .cn-icon {
-  margin-bottom: 8px;
+  margin-bottom: 9px;
   line-height: 1;
+  opacity: 0.85;
 }
 
 .cn-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: rgba(242, 242, 245, 0.9);
   white-space: nowrap;
+  letter-spacing: -0.15px;
+  line-height: 1.3;
 }
 
 .cn-subtitle {
-  font-size: 10px;
-  color: var(--text-tertiary);
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.32);
   margin-top: 3px;
   white-space: nowrap;
+  font-weight: 400;
+  letter-spacing: 0.1px;
 }
 
+/* handles */
 .cn-handle {
-  width: 8px !important;
-  height: 8px !important;
-  background: var(--surface-raised) !important;
-  border: 1.5px solid var(--border-hover) !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: #15151a !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  transition: background 0.1s, border-color 0.1s, width 0.1s, height 0.1s !important;
 }
-
 .cn-handle:hover {
+  width: 25px !important;
+  height: 25px !important;
   background: var(--accent) !important;
   border-color: var(--accent) !important;
+}
+.react-flow__node.selected .cn-handle {
+  border-color: rgba(10, 132, 255, 0.45) !important;
 }

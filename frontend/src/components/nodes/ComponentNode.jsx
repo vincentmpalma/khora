@@ -13,7 +13,7 @@ function ComponentNode({ data }) {
       <Handle type="target" position={Position.Top} className="cn-handle" />
 
       <div className="cn-icon" style={{ color: config.color }}>
-        <Icon size={36} strokeWidth={1.5} />
+        <Icon size={30} strokeWidth={1.4} />
       </div>
       <div className="cn-label">{data.nodeType}</div>
       {subtitle && <div className="cn-subtitle">{subtitle}</div>}

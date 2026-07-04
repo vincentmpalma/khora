@@ -2,6 +2,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: radial-gradient(ellipse 75% 58% at 50% 0%, #17171f 0%, #09090b 60%);
 }
 
 /* ─── nav ─── */
@@ -34,7 +35,7 @@
 
 .nav-logo-text {
   font-family: 'Hanken Grotesk', sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.3px;
@@ -92,7 +93,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 64px 48px 40px;
+  padding: 110px 48px 56px;
   gap: 18px;
 }
 
@@ -105,12 +106,12 @@
 }
 
 .hero-title {
-  font-size: 56px;
+  font-size: 62px;
   font-weight: 800;
-  line-height: 1.06;
-  letter-spacing: -2.2px;
+  line-height: 1.05;
+  letter-spacing: -2.4px;
   color: var(--text-primary);
-  max-width: 680px;
+  max-width: 700px;
 }
 
 .hero-subtitle {
@@ -126,14 +127,35 @@
   margin-top: 8px;
 }
 
+.hero-demo-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-family: var(--font);
+  cursor: pointer;
+  padding: 0;
+  margin-top: 4px;
+  transition: color 0.15s;
+}
+
+.hero-demo-link:hover {
+  color: var(--text-secondary);
+}
+
 /* ─── offline canvas demo ─── */
 .demo-section {
-  padding: 0 52px 80px;
+  padding: 100px 52px 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  position: relative;
 }
+
 
 .demo-label-row {
   display: flex;
@@ -151,9 +173,14 @@
 }
 
 .demo-interactive-hint {
-  font-size: 11.5px;
-  color: var(--text-label);
-  letter-spacing: 0.1px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 8px;
 }
 
 .demo-save-hint {
@@ -174,12 +201,27 @@
 .demo-frame {
   width: 100%;
   max-width: 1020px;
-  height: 520px;
+  height: 620px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 0 60px 6px rgba(255, 255, 255, 0.03),
+    0 48px 120px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.demo-canvas-body {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.demo-canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
 }
 
 /* ─── features ─── */
@@ -230,13 +272,12 @@
 
 /* ─── final cta ─── */
 .cta-section {
-  padding: 72px 48px 100px;
+  padding: 40px 48px 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   text-align: center;
-  border-top: 1px solid var(--border);
 }
 
 .cta-title {
@@ -244,6 +285,13 @@
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.7px;
+}
+
+.cta-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 4px;
 }
 
 .cta-actions {

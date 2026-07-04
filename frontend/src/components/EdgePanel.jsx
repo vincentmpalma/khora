@@ -1,6 +1,6 @@
 import './EdgePanel.css'
 
-const protocols = ['HTTP', 'HTTPS', 'gRPC', 'WebSocket', 'TCP', 'UDP', 'SQL', 'GraphQL', 'REST', 'Pub/Sub', 'SSE', 'async']
+const connectionTypes = ['HTTPS', 'HTTP', 'REST over HTTP', 'GraphQL over HTTP', 'gRPC', 'WebSocket', 'SSE', 'TCP', 'UDP', 'SQL Query', 'Database Connection', 'Cache Operation', 'Pub/Sub', 'Queue Message', 'Event Stream', 'File / Object Transfer', 'Webhook', 'Custom']
 
 function EdgePanel({ edge, onChange }) {
   if (!edge) return null
@@ -13,14 +13,14 @@ function EdgePanel({ edge, onChange }) {
 
       <div className="edge-panel-body">
         <div className="attr-row">
-          <label className="attr-label">Protocol</label>
+          <label className="attr-label">Connection Type</label>
           <select
             className="attr-select"
             value={edge.data?.protocol ?? ''}
             onChange={e => onChange(edge.id, 'protocol', e.target.value)}
           >
             <option value="">None</option>
-            {protocols.map(p => (
+            {connectionTypes.map(p => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>

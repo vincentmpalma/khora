@@ -5,10 +5,11 @@ import './DashboardPage.css'
 
 const nodeColorMap = {
   'Client': '#3b82f6', 'Load Balancer': '#3b82f6', 'API Gateway': '#3b82f6', 'CDN': '#3b82f6',
+  'External Service': '#14b8a6',
   'Service': '#22c55e', 'Worker': '#22c55e',
   'SQL Database': '#f97316', 'NoSQL Database': '#f97316', 'Cache': '#f97316',
   'Object Storage': '#f97316', 'Search Index': '#f97316',
-  'Message Queue': '#a855f7',
+  'Message Broker': '#a855f7',
 }
 
 function NodeIcon({ type, cx, cy, s, color }) {
@@ -74,12 +75,21 @@ function NodeIcon({ type, cx, cy, s, color }) {
           fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"
         />
       )
-    case 'Message Queue':
+    case 'Message Broker':
       return (
         <g stroke={color} strokeWidth={sw} strokeLinecap="round">
           <line x1={cx - s * 0.8} y1={cy - s * 0.5} x2={cx + s * 0.8} y2={cy - s * 0.5}/>
           <line x1={cx - s * 0.8} y1={cy} x2={cx + s * 0.8} y2={cy}/>
           <line x1={cx - s * 0.8} y1={cy + s * 0.5} x2={cx + s * 0.8} y2={cy + s * 0.5}/>
+        </g>
+      )
+    case 'External Service':
+      return (
+        <g {...p}>
+          <rect x={cx - s * 0.5} y={cy - s * 0.22} width={s * 1.0} height={s * 0.78} rx={s * 0.12}/>
+          <line x1={cx - s * 0.25} y1={cy - s * 0.22} x2={cx - s * 0.25} y2={cy - s * 0.65}/>
+          <line x1={cx + s * 0.25} y1={cy - s * 0.22} x2={cx + s * 0.25} y2={cy - s * 0.65}/>
+          <line x1={cx} y1={cy + s * 0.56} x2={cx} y2={cy + s * 0.88}/>
         </g>
       )
     case 'Object Storage':
@@ -264,7 +274,7 @@ function DashboardPage() {
   return (
     <div className="dashboard">
       <nav className="dash-nav">
-        <div className="nav-logo">
+        <div className="nav-logo" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ cursor: 'pointer' }}>
           <img src="/logos/khora-solar-coil-white.png" alt="" className="nav-logo-img"/>
           <span className="nav-logo-text">Khora</span>
         </div>
@@ -282,8 +292,8 @@ function DashboardPage() {
 
         {rooms.length === 0 ? (
           <div className="dash-empty">
-            <p className="dash-empty-title">No canvases yet</p>
-            <p className="dash-empty-sub">Create your first architecture canvas to start designing a system.</p>
+            <p className="dash-empty-title">Start your first system design</p>
+            <p className="dash-empty-sub">Map services, databases, queues, APIs, and the connections between them.</p>
             <button className="btn-primary" onClick={() => setShowModal(true)}>+ New canvas</button>
           </div>
         ) : (

@@ -11,8 +11,21 @@ export const nodeConfig = {
     primaryAttr: 'kind',
     defaults: { kind: 'Web', protocol: 'HTTPS' },
     attrOptions: {
-      kind:     { type: 'select', options: ['Web', 'Mobile', 'Desktop', 'IoT', 'Third-party'] },
+      kind:     { type: 'select', options: ['Web', 'Mobile', 'Desktop', 'IoT'] },
       protocol: { type: 'select', options: ['HTTPS', 'WebSocket', 'gRPC', 'HTTP'] },
+    },
+  },
+
+  'External Service': {
+    category: 'Network',
+    color: '#3b82f6',
+    icon: 'Plug',
+    primaryAttr: 'type',
+    defaults: { type: 'Payment', auth: 'API Key', notes: '' },
+    attrOptions: {
+      type:  { type: 'select', options: ['Payment', 'Auth', 'Email', 'Storage', 'AI API', 'Webhook Provider', 'Partner API', 'Other'] },
+      auth:  { type: 'select', options: ['API Key', 'OAuth 2.0', 'mTLS', 'None'] },
+      notes: { type: 'textarea' },
     },
   },
 
@@ -65,7 +78,7 @@ export const nodeConfig = {
     primaryAttr: 'role',
     defaults: { role: 'API Server', scaling: 'Stateless', protocol: 'HTTP', replicas: '2', healthCheck: 'HTTP', notes: '' },
     attrOptions: {
-      role:        { type: 'select', options: ['API Server', 'Microservice', 'Worker', 'BFF', 'Monolith'] },
+      role:        { type: 'select', options: ['API Server', 'Microservice', 'BFF', 'Monolith', 'Realtime Service'] },
       scaling:     { type: 'select', options: ['Stateless / Horizontal', 'Stateful / Vertical'] },
       protocol:    { type: 'select', options: ['HTTP', 'gRPC', 'WebSocket', 'TCP'] },
       replicas:    { type: 'text', placeholder: 'e.g. 3' },
@@ -79,9 +92,9 @@ export const nodeConfig = {
     color: '#22c55e',
     icon: 'Cpu',
     primaryAttr: 'role',
-    defaults: { role: 'Worker', concurrency: '4', notes: '' },
+    defaults: { role: 'Background Worker', concurrency: '4', notes: '' },
     attrOptions: {
-      role:        { type: 'select', options: ['Worker', 'Cron Job', 'Background Processor'] },
+      role:        { type: 'select', options: ['Background Worker', 'Cron Job', 'Batch Job', 'Queue Consumer'] },
       concurrency: { type: 'text', placeholder: 'e.g. 4' },
       notes:       { type: 'textarea' },
     },
@@ -160,16 +173,16 @@ export const nodeConfig = {
 
   // ─── Messaging ─────────────────────────────────────────────────────────────
 
-  'Message Queue': {
+  'Message Broker': {
     category: 'Messaging',
     color: '#a855f7',
     icon: 'Layers',
-    primaryAttr: 'type',
-    defaults: { type: 'Kafka', delivery: 'At-least-once', model: 'Pub/Sub', ordering: 'Per-partition', retryPolicy: 'Exponential Backoff' },
+    primaryAttr: 'model',
+    defaults: { model: 'Queue', engine: 'Kafka', delivery: 'At-least-once', ordering: 'Per-partition', retryPolicy: 'Exponential Backoff' },
     attrOptions: {
-      type:        { type: 'select', options: ['Kafka', 'RabbitMQ', 'SQS', 'Redis Streams', 'Google Pub/Sub'] },
-      delivery:    { type: 'select', options: ['At-most-once', 'At-least-once', 'Exactly-once'] },
       model:       { type: 'select', options: ['Queue', 'Pub/Sub', 'Stream'] },
+      engine:      { type: 'select', options: ['Kafka', 'RabbitMQ', 'SQS', 'Redis Streams', 'Google Pub/Sub'] },
+      delivery:    { type: 'select', options: ['At-most-once', 'At-least-once', 'Exactly-once'] },
       ordering:    { type: 'select', options: ['None', 'Per-partition', 'FIFO', 'Global'] },
       retryPolicy: { type: 'select', options: ['None', 'Exponential Backoff', 'Fixed Interval', 'Dead Letter Queue'] },
     },
@@ -191,9 +204,9 @@ export const nodeConfig = {
 
 // sidebar groups — defines display order and category membership
 export const sidebarGroups = [
-  { label: 'Network',   items: ['Client', 'Load Balancer', 'API Gateway', 'CDN'] },
+  { label: 'Network',   items: ['Client', 'Load Balancer', 'API Gateway', 'CDN', 'External Service'] },
   { label: 'Compute',   items: ['Service', 'Worker'] },
   { label: 'Storage',   items: ['SQL Database', 'NoSQL Database', 'Cache', 'Object Storage', 'Search Index'] },
-  { label: 'Messaging', items: ['Message Queue'] },
+  { label: 'Messaging', items: ['Message Broker'] },
   { label: 'Other',     items: ['Custom'] },
 ]

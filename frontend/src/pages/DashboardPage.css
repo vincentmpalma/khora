@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 48px;
+  padding: 0 52px;
   height: 52px;
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -34,7 +34,7 @@
 
 .nav-logo-text {
   font-family: 'Hanken Grotesk', sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.3px;
@@ -283,7 +283,7 @@
 
 .dash-empty-sub {
   font-size: 13.5px;
-  color: var(--text-tertiary);
+  color: rgba(255, 255, 255, 0.38);
   max-width: 300px;
   line-height: 1.6;
   margin-bottom: 6px;

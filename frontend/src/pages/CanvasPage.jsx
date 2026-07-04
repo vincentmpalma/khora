@@ -22,14 +22,19 @@ function cursorColor(clientId) {
 }
 
 function getSmartProtocol(sourceType, targetType) {
-  if (targetType === 'Message Queue') return 'Pub/Sub'
+  if (targetType === 'Message Broker') return 'Queue Message'
+  if (sourceType === 'Message Broker') return 'Queue Message'
   if (sourceType === 'Service' && targetType === 'Service') return 'gRPC'
   if (sourceType === 'Client') return 'HTTPS'
+  if (targetType === 'SQL Database') return 'SQL Query'
+  if (targetType === 'NoSQL Database' || targetType === 'Cache') return 'Database Connection'
+  if (targetType === 'External Service') return 'HTTPS'
   return ''
 }
 
-function getSmartMode(targetType) {
-  if (targetType === 'Message Queue') return 'async'
+function getSmartMode(sourceType, targetType) {
+  if (targetType === 'Message Broker') return 'async'
+  if (sourceType === 'Message Broker') return 'async'
   return 'sync'
 }
 
@@ -174,22 +179,25 @@ function CanvasPage() {
           setRemoteCursors(next)
         })
 
-        // once yjs sends us non-empty data we know the server sync is complete
-        // before that, don't let an empty yjs array wipe out the db-loaded nodes
+        // yReady gates the observers — we don't let them drive react state until the
+        // provider has finished its initial sync with the server. without this, a node
+        // dropped before sync completes would overwrite the http-loaded state with a
+        // single-element array, making all existing nodes disappear.
         let yReady = false
 
-        // observe yNodes — fires whenever nodes change (local or remote)
-        // this is how react state stays in sync with the yjs doc after the initial load
+        provider.on('sync', (isSynced) => {
+          if (isSynced) yReady = true
+        })
+
         yNodes.observe(() => {
-          const arr = yNodes.toArray()
-          if (arr.length > 0) yReady = true
           if (!yReady) return
+          const arr = yNodes.toArray()
           setNodes(arr)
           saveCanvas(arr, yEdges.toArray())
         })
 
-        // same for edges
         yEdges.observe(() => {
+          if (!yReady) return
           const arr = yEdges.toArray()
           setEdges(arr)
           saveCanvas(yNodes.toArray(), arr)
@@ -261,7 +269,7 @@ function CanvasPage() {
     const targetType = targetNode?.data?.nodeType
 
     const protocol = getSmartProtocol(sourceType, targetType)
-    const mode = getSmartMode(targetType)
+    const mode = getSmartMode(sourceType, targetType)
 
     const newEdge = {
       ...params,

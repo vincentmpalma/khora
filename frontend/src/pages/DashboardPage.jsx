@@ -113,8 +113,10 @@ function NodeIcon({ type, cx, cy, s, color }) {
 }
 
 function CanvasPreview({ canvasState }) {
-  const nodes = canvasState?.nodes || []
-  const edges = canvasState?.edges || []
+  const raw = canvasState?.nodes || []
+  const nodes = raw.filter((n, i, a) => a.findIndex(x => x.id === n.id) === i)
+  const rawEdges = canvasState?.edges || []
+  const edges = rawEdges.filter((e, i, a) => a.findIndex(x => x.id === e.id) === i)
   const VW = 280
   const VH = 148
   const PAD = 18
@@ -223,6 +225,8 @@ function DashboardPage() {
   const [roomName, setRoomName] = useState('')
   const [rooms, setRooms] = useState([])
   const [deletingSlug, setDeletingSlug] = useState(null)
+  const [editingSlug, setEditingSlug] = useState(null)
+  const [editingName, setEditingName] = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -251,6 +255,22 @@ function DashboardPage() {
       if (!response || !response.ok) return
       setRooms(prev => prev.filter(r => r.slug !== slug))
       setDeletingSlug(null)
+    } catch (err) { console.error(err) }
+  }
+
+  async function handleRenameRoom(slug) {
+    const trimmed = editingName.trim()
+    if (!trimmed) return
+    try {
+      const response = await apiFetch(`${import.meta.env.VITE_API_URL}/rooms/${slug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed })
+      })
+      if (!response || !response.ok) return
+      setRooms(prev => prev.map(r => r.slug === slug ? { ...r, name: trimmed } : r))
+      setEditingSlug(null)
+      setEditingName('')
     } catch (err) { console.error(err) }
   }
 
@@ -309,7 +329,7 @@ function DashboardPage() {
                   <div
                     key={room.id}
                     className="room-card"
-                    onClick={() => deletingSlug !== room.slug && navigate(`/room/${room.slug}`)}
+                    onClick={() => deletingSlug !== room.slug && editingSlug !== room.slug && navigate(`/room/${room.slug}`)}
                   >
                     <div className="room-preview">
                       <CanvasPreview canvasState={room.canvas_state}/>
@@ -317,16 +337,42 @@ function DashboardPage() {
                     <div className="room-card-body">
                       <div className="room-card-top">
                         <span className="room-name">{room.name || 'Untitled Canvas'}</span>
-                        <button
-                          className="room-delete-btn"
-                          onClick={e => { e.stopPropagation(); setDeletingSlug(room.slug) }}
-                        >✕</button>
+                        <div className="room-card-actions">
+                          <button
+                            className="room-edit-btn"
+                            onClick={e => { e.stopPropagation(); setEditingSlug(room.slug); setEditingName(room.name || ''); setDeletingSlug(null) }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                              <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </button>
+                          <button
+                            className="room-delete-btn"
+                            onClick={e => { e.stopPropagation(); setDeletingSlug(room.slug); setEditingSlug(null) }}
+                          >✕</button>
+                        </div>
                       </div>
                       <span className="room-stats">{nc} {nc === 1 ? 'node' : 'nodes'} · {ec} {ec === 1 ? 'edge' : 'edges'}</span>
                       <div className="room-card-footer">
-                        <span className="room-date">{relativeTime(room.created_at)}</span>
+                        <span className="room-date">{room.updated_at ? `edited ${relativeTime(room.updated_at)}` : relativeTime(room.created_at)}</span>
                         <span className="room-open">Open →</span>
                       </div>
+
+                      {editingSlug === room.slug && (
+                        <div className="room-delete-overlay" onClick={e => e.stopPropagation()}>
+                          <input
+                            className="room-rename-input"
+                            value={editingName}
+                            onChange={e => setEditingName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleRenameRoom(room.slug); if (e.key === 'Escape') { setEditingSlug(null); setEditingName('') } }}
+                            autoFocus
+                          />
+                          <div className="room-delete-btns">
+                            <button className="btn-delete-cancel" onClick={() => { setEditingSlug(null); setEditingName('') }}>Cancel</button>
+                            <button className="btn-primary" style={{ fontSize: '12.5px', padding: '5px 14px' }} onClick={() => handleRenameRoom(room.slug)}>Save</button>
+                          </div>
+                        </div>
+                      )}
 
                       {deletingSlug === room.slug && (
                         <div className="room-delete-overlay" onClick={e => e.stopPropagation()}>

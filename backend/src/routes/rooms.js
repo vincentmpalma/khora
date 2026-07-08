@@ -38,7 +38,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, name, slug, created_at, canvas_state FROM rooms WHERE owner_id = $1 ORDER BY created_at DESC',
+      'SELECT id, name, slug, created_at, updated_at, canvas_state FROM rooms WHERE owner_id = $1 ORDER BY COALESCE(updated_at, created_at) DESC',
       [owner_id]
     )
     res.json({ rooms: result.rows })
@@ -187,10 +187,10 @@ router.patch('/:slug', authMiddleware, async (req, res) => {
     }
 
     if (canvas_state !== undefined) {
-      await pool.query('UPDATE rooms SET canvas_state = $1 WHERE id = $2', [canvas_state, room.id])
+      await pool.query('UPDATE rooms SET canvas_state = $1, updated_at = NOW() WHERE id = $2', [canvas_state, room.id])
     }
     if (name && room.owner_id === user_id) {
-      await pool.query('UPDATE rooms SET name = $1 WHERE id = $2', [name.trim(), room.id])
+      await pool.query('UPDATE rooms SET name = $1, updated_at = NOW() WHERE id = $2', [name.trim(), room.id])
     }
     res.json({ ok: true })
   } catch (err) {

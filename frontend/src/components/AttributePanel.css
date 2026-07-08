@@ -101,3 +101,28 @@
 .attr-textarea::placeholder {
   color: var(--text-tertiary);
 }
+
+.attr-panel-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.attr-delete-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(255, 69, 58, 0.2);
+  border-radius: 7px;
+  color: rgba(255, 69, 58, 0.7);
+  font-size: 12px;
+  font-family: var(--font);
+  padding: 7px 0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.attr-delete-btn:hover {
+  background: rgba(255, 69, 58, 0.08);
+  border-color: rgba(255, 69, 58, 0.4);
+  color: #ff453a;
+}

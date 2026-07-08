@@ -2,7 +2,7 @@ import * as Icons from 'lucide-react'
 import { nodeConfig } from './nodes/nodeConfig'
 import './AttributePanel.css'
 
-function AttributePanel({ node, onChange }) {
+function AttributePanel({ node, onChange, onDelete }) {
   if (!node) return null
 
   const config = nodeConfig[node.data.nodeType] || nodeConfig['Custom']
@@ -62,6 +62,14 @@ function AttributePanel({ node, onChange }) {
           </div>
         ))}
       </div>
+
+      {onDelete && (
+        <div className="attr-panel-footer">
+          <button className="attr-delete-btn" onClick={() => onDelete(node.id)}>
+            Delete node
+          </button>
+        </div>
+      )}
     </div>
   )
 }

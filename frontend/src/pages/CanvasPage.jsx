@@ -105,6 +105,9 @@ function CanvasPage() {
         const guest = guestSession ? JSON.parse(guestSession) : null
         const isGuest = !authToken
 
+        let savedNodes = []
+        let savedEdges = []
+
         if (isGuest) {
           // guests must have arrived via an invite link — no direct room access
           if (!guest || guest.roomSlug !== slug) {
@@ -132,8 +135,8 @@ function CanvasPage() {
 
           // load initial canvas state directly into react state so the canvas renders immediately
           // yjs handles changes after this — this is just the initial paint
-          const savedNodes = data.room.canvas_state?.nodes || []
-          const savedEdges = data.room.canvas_state?.edges || []
+          savedNodes = (data.room.canvas_state?.nodes || []).filter((n, i, a) => a.findIndex(x => x.id === n.id) === i)
+          savedEdges = (data.room.canvas_state?.edges || []).filter((e, i, a) => a.findIndex(x => x.id === e.id) === i)
           if (savedNodes.length) setNodes(savedNodes)
           if (savedEdges.length) setEdges(savedEdges)
         }
@@ -186,21 +189,31 @@ function CanvasPage() {
         let yReady = false
 
         provider.on('sync', (isSynced) => {
-          if (isSynced) yReady = true
+          if (!isSynced) return
+          // if yjs has no nodes but db has saved state, bootstrap yjs from db.
+          // without this, the first drop/move that writes to yNodes would call
+          // setNodes(yNodes.toArray()) with only that 1 node, wiping all db-loaded nodes.
+          if (yNodes.length === 0 && savedNodes.length > 0) {
+            ydoc.transact(() => {
+              savedNodes.forEach(n => yNodes.push([n]))
+              savedEdges.forEach(e => yEdges.push([e]))
+            })
+          }
+          yReady = true
         })
 
         yNodes.observe(() => {
           if (!yReady) return
-          const arr = yNodes.toArray()
+          const arr = yNodes.toArray().filter((n, i, a) => a.findIndex(x => x.id === n.id) === i)
           setNodes(arr)
-          saveCanvas(arr, yEdges.toArray())
+          saveCanvas(arr, yEdges.toArray().filter((e, i, a) => a.findIndex(x => x.id === e.id) === i))
         })
 
         yEdges.observe(() => {
           if (!yReady) return
-          const arr = yEdges.toArray()
+          const arr = yEdges.toArray().filter((e, i, a) => a.findIndex(x => x.id === e.id) === i)
           setEdges(arr)
-          saveCanvas(yNodes.toArray(), arr)
+          saveCanvas(yNodes.toArray().filter((n, i, a) => a.findIndex(x => x.id === n.id) === i), arr)
         })
 
       } catch (err) {
@@ -260,6 +273,73 @@ function CanvasPage() {
       yEdges.delete(idx, 1)
       yEdges.insert(idx, [updatedEdge])
     })
+  }
+
+  const handleNodesChange = useCallback((changes) => {
+    const removes = changes.filter(c => c.type === 'remove')
+    const others = changes.filter(c => c.type !== 'remove')
+    if (others.length) onNodesChange(others)
+    if (removes.length && yNodesRef.current && yEdgesRef.current && ydocRef.current) {
+      const yNodes = yNodesRef.current
+      const yEdges = yEdgesRef.current
+      const ydoc = ydocRef.current
+      const nodeArr = yNodes.toArray()
+      const edgeArr = yEdges.toArray()
+      ydoc.transact(() => {
+        const nodeIndices = removes
+          .map(c => nodeArr.findIndex(n => n.id === c.id))
+          .filter(i => i !== -1)
+          .sort((a, b) => b - a)
+        nodeIndices.forEach(i => yNodes.delete(i, 1))
+        // also remove edges connected to deleted nodes
+        const deletedIds = new Set(removes.map(c => c.id))
+        const edgeIndices = edgeArr
+          .map((e, i) => (deletedIds.has(e.source) || deletedIds.has(e.target)) ? i : -1)
+          .filter(i => i !== -1)
+          .sort((a, b) => b - a)
+        edgeIndices.forEach(i => yEdges.delete(i, 1))
+      })
+      setSelectedNodeId(null)
+      setSelectedEdgeId(null)
+    }
+  }, [onNodesChange])
+
+  const handleEdgesChange = useCallback((changes) => {
+    const removes = changes.filter(c => c.type === 'remove')
+    const others = changes.filter(c => c.type !== 'remove')
+    if (others.length) onEdgesChange(others)
+    if (removes.length && yEdgesRef.current && ydocRef.current) {
+      const yEdges = yEdgesRef.current
+      const ydoc = ydocRef.current
+      const arr = yEdges.toArray()
+      ydoc.transact(() => {
+        const indices = removes
+          .map(c => arr.findIndex(e => e.id === c.id))
+          .filter(i => i !== -1)
+          .sort((a, b) => b - a)
+        indices.forEach(i => yEdges.delete(i, 1))
+      })
+      setSelectedEdgeId(null)
+    }
+  }, [onEdgesChange])
+
+  function onDeleteNode(nodeId) {
+    const yNodes = yNodesRef.current
+    const yEdges = yEdgesRef.current
+    const ydoc = ydocRef.current
+    if (!yNodes || !yEdges || !ydoc) return
+    const nodeArr = yNodes.toArray()
+    const edgeArr = yEdges.toArray()
+    const nodeIdx = nodeArr.findIndex(n => n.id === nodeId)
+    const edgeIndices = edgeArr
+      .map((e, i) => (e.source === nodeId || e.target === nodeId) ? i : -1)
+      .filter(i => i !== -1)
+      .sort((a, b) => b - a)
+    ydoc.transact(() => {
+      if (nodeIdx !== -1) yNodes.delete(nodeIdx, 1)
+      edgeIndices.forEach(i => yEdges.delete(i, 1))
+    })
+    setSelectedNodeId(null)
   }
 
   const onConnect = useCallback((params) => {
@@ -470,7 +550,7 @@ function CanvasPage() {
 
   const rightPanel = selectedEdge
     ? <EdgePanel edge={selectedEdge} onChange={onEdgeChange} />
-    : <AttributePanel node={selectedNode} onChange={onAttrChange} />
+    : <AttributePanel node={selectedNode} onChange={onAttrChange} onDelete={onDeleteNode} />
 
   const saveState = saveStatus === 'saving...' ? 'saving'
     : saveStatus === 'error saving' ? 'error'
@@ -538,8 +618,8 @@ function CanvasPage() {
             nodeTypes={nodeTypes}
             nodes={nodes}
             edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
             onConnect={onConnect}
             onInit={setRfInstance}
             onDrop={onDrop}

@@ -40,6 +40,8 @@ const io = new Server(httpServer, {
 // without it, clients connected to different instances can't see each other's events
 const pubClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
 const subClient = pubClient.duplicate()
+pubClient.on('error', (err) => console.error('redis pub error:', err.message))
+subClient.on('error', (err) => console.error('redis sub error:', err.message))
 io.adapter(createAdapter(pubClient, subClient))
 
 // yjs document sync — instead of manually writing socket events, y-socket.io handles

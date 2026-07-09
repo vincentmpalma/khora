@@ -92,9 +92,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 110px 48px 56px;
+  padding: 60px 48px 60px;
   gap: 18px;
+  min-height: calc(100vh - 52px);
 }
 
 .hero-eyebrow {
@@ -106,7 +108,7 @@
 }
 
 .hero-title {
-  font-size: 62px;
+  font-size: clamp(40px, 4.8vw, 62px);
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -2.4px;
@@ -148,7 +150,7 @@
 
 /* ─── offline canvas demo ─── */
 .demo-section {
-  padding: 100px 52px 80px;
+  padding: 60px 52px 80px;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -1,8 +1,9 @@
 import './EdgePanel.css'
+import './AttributePanel.css'
 
 const connectionTypes = ['HTTPS', 'HTTP', 'REST over HTTP', 'GraphQL over HTTP', 'gRPC', 'WebSocket', 'SSE', 'TCP', 'UDP', 'SQL Query', 'Database Connection', 'Cache Operation', 'Pub/Sub', 'Queue Message', 'Event Stream', 'File / Object Transfer', 'Webhook', 'Custom']
 
-function EdgePanel({ edge, onChange }) {
+function EdgePanel({ edge, onChange, onDelete }) {
   if (!edge) return null
 
   return (
@@ -49,6 +50,14 @@ function EdgePanel({ edge, onChange }) {
           />
         </div>
       </div>
+
+      {onDelete && (
+        <div className="attr-panel-footer">
+          <button className="attr-delete-btn" onClick={() => onDelete(edge.id)}>
+            Delete connection
+          </button>
+        </div>
+      )}
     </div>
   )
 }

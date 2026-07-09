@@ -71,6 +71,17 @@ function DemoCanvas() {
     ))
   }
 
+  function onDeleteNode(nodeId) {
+    setNodes(prev => prev.filter(n => n.id !== nodeId))
+    setEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId))
+    setSelectedNodeId(null)
+  }
+
+  function onDeleteEdge(edgeId) {
+    setEdges(prev => prev.filter(e => e.id !== edgeId))
+    setSelectedEdgeId(null)
+  }
+
   function onEdgeChange(edgeId, key, value) {
     setEdges(prev => prev.map(e => {
       if (e.id !== edgeId) return e
@@ -117,8 +128,8 @@ function DemoCanvas() {
   }, [rfInstance])
 
   const rightPanel = selectedEdge
-    ? <EdgePanel edge={selectedEdge} onChange={onEdgeChange} />
-    : <AttributePanel node={selectedNode} onChange={onAttrChange} />
+    ? <EdgePanel edge={selectedEdge} onChange={onEdgeChange} onDelete={onDeleteEdge} />
+    : <AttributePanel node={selectedNode} onChange={onAttrChange} onDelete={onDeleteNode} />
 
   return (
     <div className="demo-canvas-body">
@@ -195,7 +206,7 @@ function LandingPage() {
       </nav>
 
       <section className="hero">
-        <p className="hero-eyebrow">System design canvas</p>
+
         <h1 className="hero-title">Design software systems on a canvas.</h1>
         <p className="hero-subtitle">
           Drag in services, databases, queues, and APIs. Map the connections, share the room, and export the final diagram.

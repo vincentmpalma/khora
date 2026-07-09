@@ -286,13 +286,13 @@ function CanvasPage() {
       const nodeArr = yNodes.toArray()
       const edgeArr = yEdges.toArray()
       ydoc.transact(() => {
-        const nodeIndices = removes
-          .map(c => nodeArr.findIndex(n => n.id === c.id))
+        const deletedIds = new Set(removes.map(c => c.id))
+        const nodeIndices = nodeArr
+          .map((n, i) => deletedIds.has(n.id) ? i : -1)
           .filter(i => i !== -1)
           .sort((a, b) => b - a)
         nodeIndices.forEach(i => yNodes.delete(i, 1))
         // also remove edges connected to deleted nodes
-        const deletedIds = new Set(removes.map(c => c.id))
         const edgeIndices = edgeArr
           .map((e, i) => (deletedIds.has(e.source) || deletedIds.has(e.target)) ? i : -1)
           .filter(i => i !== -1)
@@ -313,8 +313,9 @@ function CanvasPage() {
       const ydoc = ydocRef.current
       const arr = yEdges.toArray()
       ydoc.transact(() => {
-        const indices = removes
-          .map(c => arr.findIndex(e => e.id === c.id))
+        const removedIds = new Set(removes.map(c => c.id))
+        const indices = arr
+          .map((e, i) => removedIds.has(e.id) ? i : -1)
           .filter(i => i !== -1)
           .sort((a, b) => b - a)
         indices.forEach(i => yEdges.delete(i, 1))
@@ -330,16 +331,34 @@ function CanvasPage() {
     if (!yNodes || !yEdges || !ydoc) return
     const nodeArr = yNodes.toArray()
     const edgeArr = yEdges.toArray()
-    const nodeIdx = nodeArr.findIndex(n => n.id === nodeId)
+    const nodeIndices = nodeArr
+      .map((n, i) => n.id === nodeId ? i : -1)
+      .filter(i => i !== -1)
+      .sort((a, b) => b - a)
     const edgeIndices = edgeArr
       .map((e, i) => (e.source === nodeId || e.target === nodeId) ? i : -1)
       .filter(i => i !== -1)
       .sort((a, b) => b - a)
     ydoc.transact(() => {
-      if (nodeIdx !== -1) yNodes.delete(nodeIdx, 1)
+      nodeIndices.forEach(i => yNodes.delete(i, 1))
       edgeIndices.forEach(i => yEdges.delete(i, 1))
     })
     setSelectedNodeId(null)
+  }
+
+  function onDeleteEdge(edgeId) {
+    const yEdges = yEdgesRef.current
+    const ydoc = ydocRef.current
+    if (!yEdges || !ydoc) return
+    const arr = yEdges.toArray()
+    const indices = arr
+      .map((e, i) => e.id === edgeId ? i : -1)
+      .filter(i => i !== -1)
+      .sort((a, b) => b - a)
+    ydoc.transact(() => {
+      indices.forEach(i => yEdges.delete(i, 1))
+    })
+    setSelectedEdgeId(null)
   }
 
   const onConnect = useCallback((params) => {
@@ -549,7 +568,7 @@ function CanvasPage() {
   }
 
   const rightPanel = selectedEdge
-    ? <EdgePanel edge={selectedEdge} onChange={onEdgeChange} />
+    ? <EdgePanel edge={selectedEdge} onChange={onEdgeChange} onDelete={onDeleteEdge} />
     : <AttributePanel node={selectedNode} onChange={onAttrChange} onDelete={onDeleteNode} />
 
   const saveState = saveStatus === 'saving...' ? 'saving'

@@ -3,6 +3,8 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { createAdapter } from '@socket.io/redis-adapter'
+import { Redis } from 'ioredis'
 import { YSocketIO } from 'y-socket.io/dist/server'
 import authRoutes from './routes/auth.js'
 import roomRoutes from './routes/rooms.js'
@@ -33,6 +35,12 @@ const httpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: { origin: '*' }
 })
+
+// redis adapter lets multiple server instances share socket.io state
+// without it, clients connected to different instances can't see each other's events
+const pubClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
+const subClient = pubClient.duplicate()
+io.adapter(createAdapter(pubClient, subClient))
 
 // yjs document sync — instead of manually writing socket events, y-socket.io handles
 // all the syncing internally using its own set of events over the socket connection

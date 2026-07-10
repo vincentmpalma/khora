@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(ellipse 75% 58% at 50% 0%, #17171f 0%, #09090b 60%);
+  background: radial-gradient(ellipse 75% 58% at 32% 0%, #17171f 0%, #09090b 60%);
 }
 
 /* ─── nav ─── */

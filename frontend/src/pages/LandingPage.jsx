@@ -178,6 +178,55 @@ const fakeCursors = [
   { name: shuffled[1], color: '#34d399', className: 'fake-cursor--2' },
 ]
 
+// mini architecture that assembles once in the hero's right side, then stays still.
+// nodes use the real editor's icons and colors so it reads as a fragment of the product
+const heroDiagramNodes = [
+  { id: 'client', label: 'Client', icon: 'Monitor', color: '#3b82f6', x: 105, y: 0, delay: 0.15 },
+  { id: 'gateway', label: 'API Gateway', icon: 'Globe', color: '#3b82f6', x: 105, y: 92, delay: 0.55 },
+  { id: 'service', label: 'Service', icon: 'Server', color: '#22c55e', x: 22, y: 194, delay: 0.95 },
+  { id: 'broker', label: 'Message Broker', icon: 'Layers', color: '#a855f7', x: 188, y: 194, delay: 1.15 },
+]
+
+// smoothstep-style elbow paths matching the editor's edges, drawn after nodes settle
+const heroDiagramEdges = [
+  { d: 'M151 58 L151 92', delay: 1.5 },
+  { d: 'M151 150 L151 172 L68 172 L68 194', delay: 1.75 },
+  { d: 'M151 150 L151 172 L234 172 L234 194', delay: 1.95 },
+]
+
+function HeroDiagram() {
+  return (
+    <div className="hero-diagram" aria-hidden="true">
+      <svg className="hero-diagram-edges" viewBox="0 0 302 252" fill="none">
+        {heroDiagramEdges.map((e, i) => (
+          <path
+            key={i}
+            d={e.d}
+            pathLength="1"
+            className="hero-diagram-edge"
+            style={{ animationDelay: `${e.delay}s` }}
+          />
+        ))}
+      </svg>
+      {heroDiagramNodes.map(n => {
+        const Icon = Icons[n.icon]
+        return (
+          <div
+            key={n.id}
+            className="hero-diagram-node"
+            style={{ left: n.x, top: n.y, animationDelay: `${n.delay}s` }}
+          >
+            <span className="hero-diagram-icon" style={{ color: n.color }}>
+              {Icon && <Icon size={15} strokeWidth={1.7} />}
+            </span>
+            <span className="hero-diagram-label">{n.label}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function LandingPage() {
   const navigate = useNavigate()
   const [cursorsDismissed, setCursorsDismissed] = useState(false)
@@ -221,14 +270,17 @@ function LandingPage() {
 
       <section className="hero">
         <div className="hero-inner">
-          <h1 className="hero-title">Design software systems together.</h1>
-          <p className="hero-subtitle">
-            Drag in services, databases, queues, and APIs. Map the connections, share the room, and export the final diagram.
-          </p>
-          <div className="hero-actions">
-            <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Start designing</button>
-            <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign in</button>
+          <div className="hero-copy">
+            <h1 className="hero-title">Design software systems together.</h1>
+            <p className="hero-subtitle">
+              Drag in services, databases, queues, and APIs. Map the connections, share the room, and export the final diagram.
+            </p>
+            <div className="hero-actions">
+              <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Start designing</button>
+              <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign in</button>
+            </div>
           </div>
+          <HeroDiagram />
         </div>
       </section>
 

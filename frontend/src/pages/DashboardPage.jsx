@@ -122,13 +122,21 @@ function CanvasPreview({ canvasState }) {
   const PAD = 18
 
   if (!nodes.length) {
+    // plain dotted grid with a faint label — fake node shapes here read as a
+    // failed render next to the "0 nodes" metadata
     return (
       <svg viewBox={`0 0 ${VW} ${VH}`} className="room-preview-svg" aria-hidden="true">
-        <rect x="76" y="48" width="54" height="32" rx="5" fill="#1c1c22" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
-        <rect x="148" y="28" width="54" height="32" rx="5" fill="#1c1c22" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
-        <rect x="148" y="72" width="54" height="32" rx="5" fill="#1c1c22" stroke="rgba(255,255,255,0.07)" strokeWidth="1"/>
-        <line x1="130" y1="64" x2="148" y2="44" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
-        <line x1="130" y1="64" x2="148" y2="88" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
+        <text
+          x={VW / 2}
+          y={VH / 2 + 4}
+          textAnchor="middle"
+          fill="rgba(255,255,255,0.22)"
+          fontSize="11"
+          fontFamily="'Hanken Grotesk', sans-serif"
+          letterSpacing="0.3"
+        >
+          Empty canvas
+        </text>
       </svg>
     )
   }

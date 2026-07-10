@@ -40,16 +40,20 @@ const initialEdges = [
 const features = [
   {
     icon: 'Layers',
+    color: '#0A84FF',
     title: 'Build system diagrams on a canvas',
     desc: 'Drag services, databases, queues, APIs, and external systems onto an infinite canvas, then connect them with labeled protocol-aware edges.',
   },
   {
     icon: 'Users',
+    color: '#34d399',
+    highlight: true,
     title: 'Collaborate in shared rooms',
     desc: 'Invite others into the same architecture canvas, design together in real time, and see everyone\'s cursor as they edit.',
   },
   {
     icon: 'Download',
+    color: '#ff9f0a',
     title: 'Export for docs and interviews',
     desc: 'Export architecture diagrams as PNG or PDF, ready for docs, presentations, and system design interviews.',
   },
@@ -165,8 +169,18 @@ function DemoCanvas() {
   )
 }
 
+// fake multiplayer cursors that drift over the demo until the visitor takes over
+// two random names are picked per page load
+const cursorNames = ['vincent', 'ahmed', 'alberto', 'janniel', 'gustavo', 'roberto']
+const shuffled = [...cursorNames].sort(() => Math.random() - 0.5)
+const fakeCursors = [
+  { name: shuffled[0], color: '#a78bfa', className: 'fake-cursor--1' },
+  { name: shuffled[1], color: '#34d399', className: 'fake-cursor--2' },
+]
+
 function LandingPage() {
   const navigate = useNavigate()
+  const [cursorsDismissed, setCursorsDismissed] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -201,39 +215,44 @@ function LandingPage() {
         </div>
         <div className="nav-actions">
           <button className="btn-ghost" onClick={() => navigate('/login')}>Sign in</button>
-          <button className="btn-primary" onClick={() => navigate('/register')}>Get started</button>
+          <button className="btn-primary" onClick={() => navigate('/register')}>Start designing</button>
         </div>
       </nav>
 
       <section className="hero">
-
-        <h1 className="hero-title">Design software systems on a canvas.</h1>
-        <p className="hero-subtitle">
-          Drag in services, databases, queues, and APIs. Map the connections, share the room, and export the final diagram.
-        </p>
-        <div className="hero-actions">
-          <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Start designing</button>
-          <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign in</button>
+        <div className="hero-inner">
+          <h1 className="hero-title">Design software systems together.</h1>
+          <p className="hero-subtitle">
+            Drag in services, databases, queues, and APIs. Map the connections, share the room, and export the final diagram.
+          </p>
+          <div className="hero-actions">
+            <button className="btn-primary btn-large" onClick={() => navigate('/register')}>Start designing</button>
+            <button className="btn-ghost btn-large" onClick={() => navigate('/login')}>Sign in</button>
+          </div>
         </div>
-        <button className="hero-demo-link" onClick={() => { const el = document.getElementById('demo-frame'); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior: 'smooth' }) }}>
-          Try the interactive demo
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 2.5V11.5M7 11.5L3 7.5M7 11.5L11 7.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
       </section>
 
       <section className="demo-section" id="demo">
         <div className="demo-label-row">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span className="demo-interactive-hint" style={{ cursor: 'pointer' }} onClick={() => { const el = document.getElementById('demo-frame'); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior: 'smooth' }) }}>Interactive demo</span>
-          </div>
+          <span className="demo-try-hint">Try the canvas. Drag, connect, or edit anything.</span>
           <button className="demo-save-hint" onClick={() => navigate('/register')}>
             Sign in to save your work →
           </button>
         </div>
-        <div className="demo-frame" id="demo-frame">
+        <div className="demo-frame" id="demo-frame" onPointerDown={() => setCursorsDismissed(true)}>
           <DemoCanvas />
+          <div className={`fake-cursors${cursorsDismissed ? ' fake-cursors--hidden' : ''}`}>
+            {fakeCursors.map(c => (
+              <div key={c.name} className={`fake-cursor ${c.className}`}>
+                <svg width="16" height="20" viewBox="0 0 16 20" fill={c.color}>
+                  <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L11 11 Z" />
+                </svg>
+                <div className="fake-cursor-label" style={{ background: c.color }}>
+                  {c.name}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -243,11 +262,27 @@ function LandingPage() {
             const Icon = Icons[f.icon]
             return (
               <div key={f.title} className="feature-card">
-                <span className="feature-icon">
+                <span className="feature-icon" style={{ color: f.color }}>
                   {Icon && <Icon size={16} strokeWidth={1.6} />}
                 </span>
                 <p className="feature-title">{f.title}</p>
                 <p className="feature-desc">{f.desc}</p>
+                {f.highlight && (
+                  <div className="feature-collab-row">
+                    <span className="collab-chip collab-chip--purple">
+                      <svg width="9" height="11" viewBox="0 0 16 20" fill="currentColor">
+                        <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L11 11 Z" />
+                      </svg>
+                      ahmed
+                    </span>
+                    <span className="collab-chip collab-chip--green">
+                      <svg width="9" height="11" viewBox="0 0 16 20" fill="currentColor">
+                        <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L11 11 Z" />
+                      </svg>
+                      vincent
+                    </span>
+                  </div>
+                )}
               </div>
             )
           })}
